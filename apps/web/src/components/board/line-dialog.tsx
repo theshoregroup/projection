@@ -1,4 +1,3 @@
-import { sortOrderAtEnd } from "@projection/api/domain/ordering";
 import { Button } from "@projection/ui/components/button";
 import { Checkbox } from "@projection/ui/components/checkbox";
 import {
@@ -21,20 +20,15 @@ type LinesCollection = ReturnType<typeof getLinesCollection>;
 interface LineDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	projectId: string;
-	/** The Line being edited, or null to create one. */
-	line: LineRow | null;
-	/** Current Lines (for appending sort order on create). */
-	lines: LineRow[];
+	/** The Line being edited. Creating Lines happens inline on the Board. */
+	line: LineRow;
 	collection: LinesCollection;
 }
 
 export default function LineDialog({
 	open,
 	onOpenChange,
-	projectId,
 	line,
-	lines,
 	collection,
 }: LineDialogProps) {
 	const [item, setItem] = useState("");
@@ -49,13 +43,13 @@ export default function LineDialog({
 	// Reset the form whenever the dialog targets a different Line
 	useEffect(() => {
 		if (!open) return;
-		setItem(line?.item ?? "");
-		setStartDate(line?.startDate ?? "");
-		setEndDate(line?.endDate ?? "");
-		setAssignee(line?.assignee ?? "");
-		setNote(line?.note ?? "");
-		setPercentComplete(line?.percentComplete ?? 0);
-		setIsMilestone(line?.isMilestone ?? false);
+		setItem(line.item);
+		setStartDate(line.startDate);
+		setEndDate(line.endDate);
+		setAssignee(line.assignee ?? "");
+		setNote(line.note ?? "");
+		setPercentComplete(line.percentComplete);
+		setIsMilestone(line.isMilestone);
 	}, [open, line]);
 
 	const effectiveEnd = isMilestone ? startDate : endDate;
@@ -92,32 +86,18 @@ export default function LineDialog({
 			percentComplete,
 			isMilestone,
 		};
-		if (line) {
-			void persist(() =>
-				collection.update(line.id, (draft) => {
-					Object.assign(draft, values);
-				}),
-			);
-		} else {
-			const now = new Date().toISOString();
-			void persist(() =>
-				collection.insert({
-					...values,
-					id: crypto.randomUUID(),
-					projectId,
-					sortOrder: sortOrderAtEnd(lines.map((row) => row.sortOrder)),
-					createdAt: now,
-					updatedAt: now,
-				} satisfies LineRow),
-			);
-		}
+		void persist(() =>
+			collection.update(line.id, (draft) => {
+				Object.assign(draft, values);
+			}),
+		);
 	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>{line ? "Edit line" : "New line"}</DialogTitle>
+					<DialogTitle>Edit line</DialogTitle>
 				</DialogHeader>
 				<form
 					className="space-y-4"
@@ -211,7 +191,7 @@ export default function LineDialog({
 					)}
 					<DialogFooter>
 						<Button type="submit" disabled={!canSubmit}>
-							{saving ? "Saving…" : line ? "Save changes" : "Add line"}
+							{saving ? "Saving…" : "Save changes"}
 						</Button>
 					</DialogFooter>
 				</form>

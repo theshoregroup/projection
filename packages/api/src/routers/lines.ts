@@ -28,7 +28,13 @@ export const linesRouter = router({
 	create: protectedProcedure
 		.input(
 			lineBaseSchema
-				.extend({ projectId: z.string().min(1) })
+				.extend({
+					projectId: z.string().min(1),
+					// Optional neighbours to insert between (inline creation);
+					// omitted means append at the end.
+					beforeLineId: z.string().min(1).nullish(),
+					afterLineId: z.string().min(1).nullish(),
+				})
 				.transform(coerceMilestoneDates)
 				.refine(validLineRange, {
 					message: "End must be on or after Start",
@@ -37,10 +43,29 @@ export const linesRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			await loadProjectForUser(ctx.db, input.projectId, ctx.session.user.id);
-			const existing = await ctx.db
-				.select({ sortOrder: line.sortOrder })
-				.from(line)
-				.where(eq(line.projectId, input.projectId));
+			let sortOrder: number;
+			if (input.beforeLineId || input.afterLineId) {
+				const neighbourIds = [input.beforeLineId, input.afterLineId].filter(
+					(id): id is string => id != null,
+				);
+				const neighbours = await ctx.db
+					.select({ id: line.id, sortOrder: line.sortOrder })
+					.from(line)
+					.where(inArray(line.id, neighbourIds));
+				const before =
+					neighbours.find((row) => row.id === input.beforeLineId)?.sortOrder ??
+					null;
+				const after =
+					neighbours.find((row) => row.id === input.afterLineId)?.sortOrder ??
+					null;
+				sortOrder = sortOrderBetween(before, after);
+			} else {
+				const existing = await ctx.db
+					.select({ sortOrder: line.sortOrder })
+					.from(line)
+					.where(eq(line.projectId, input.projectId));
+				sortOrder = sortOrderAtEnd(existing.map((row) => row.sortOrder));
+			}
 			const [created] = await ctx.db
 				.insert(line)
 				.values({
@@ -52,7 +77,7 @@ export const linesRouter = router({
 					note: input.note || null,
 					percentComplete: input.percentComplete,
 					isMilestone: input.isMilestone,
-					sortOrder: sortOrderAtEnd(existing.map((row) => row.sortOrder)),
+					sortOrder,
 				})
 				.returning();
 			return created;

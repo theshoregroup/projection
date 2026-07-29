@@ -1,3 +1,8 @@
+import {
+	ArrowsClockwiseIcon,
+	CopyIcon,
+	TrashIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { Badge } from "@projection/ui/components/badge";
 import { Button } from "@projection/ui/components/button";
 import {
@@ -11,10 +16,8 @@ import {
 import { Input } from "@projection/ui/components/input";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, RefreshCw, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import { getEditorsCollection, type ProjectRow } from "@/lib/collections";
 import { useTRPC, useTRPCClient } from "@/utils/trpc";
 
@@ -132,12 +135,12 @@ export default function SharePanel({
 								onClick={copyLink}
 								aria-label="Copy link"
 							>
-								<Copy className="size-4" />
+								<CopyIcon className="size-4" />
 							</Button>
 						</div>
 						{role === "owner" && (
 							<Button variant="ghost" size="sm" onClick={regenerate}>
-								<RefreshCw className="size-3" /> Regenerate link
+								<ArrowsClockwiseIcon className="size-3" /> Regenerate link
 							</Button>
 						)}
 					</div>
@@ -169,7 +172,7 @@ export default function SharePanel({
 												onClick={() => void removeEditor(editor.id)}
 												aria-label={`Remove ${editor.email}`}
 											>
-												<Trash2 className="size-4" />
+												<TrashIcon className="size-4" />
 											</Button>
 										)}
 									</li>

@@ -59,7 +59,7 @@ export const projectsRouter = router({
 		}),
 
 	delete: protectedProcedure
-		.input(z.object({ id: z.string().min(1) }))
+		.input(z.object({ id: z.uuid() }))
 		.mutation(async ({ ctx, input }) => {
 			const access = await loadProjectForUser(
 				ctx.db,
@@ -72,7 +72,7 @@ export const projectsRouter = router({
 		}),
 
 	byId: protectedProcedure
-		.input(z.object({ id: z.string().min(1) }))
+		.input(z.object({ id: z.uuid() }))
 		.query(async ({ ctx, input }) => {
 			const access = await loadProjectForUser(
 				ctx.db,
@@ -103,7 +103,7 @@ export const projectsRouter = router({
 	}),
 
 	regenerateShareToken: protectedProcedure
-		.input(z.object({ id: z.string().min(1) }))
+		.input(z.object({ id: z.uuid() }))
 		.mutation(async ({ ctx, input }) => {
 			const access = await loadProjectForUser(
 				ctx.db,

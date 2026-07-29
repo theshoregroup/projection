@@ -1,11 +1,14 @@
+import {
+	DotsSixVerticalIcon,
+	PlusIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { addDays, deriveWindow } from "@projection/api/domain/dates";
 import { sortOrderBetween } from "@projection/api/domain/ordering";
-import { Button } from "@projection/ui/components/button";
 import { useQueryClient } from "@tanstack/react-query";
-import { GripVertical, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import InlineLineForm from "@/components/board/inline-line-form";
 import LineDialog from "@/components/board/line-dialog";
 import ZoomBar from "@/components/board/zoom-bar";
 import { assigneeColor } from "@/lib/board-layout/colors";
@@ -84,6 +87,8 @@ export default function BoardView({
 	} | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editingLine, setEditingLine] = useState<LineRow | null>(null);
+	/** Row index the inline creation panel inserts at (null = closed). */
+	const [createAt, setCreateAt] = useState<number | null>(null);
 	const [reorderHover, setReorderHover] = useState<{
 		lineId: string;
 		index: number;
@@ -103,11 +108,6 @@ export default function BoardView({
 	function openEdit(line: LineRow) {
 		if (readOnly) return;
 		setEditingLine(line);
-		setDialogOpen(true);
-	}
-
-	function openCreate() {
-		setEditingLine(null);
 		setDialogOpen(true);
 	}
 
@@ -219,16 +219,13 @@ export default function BoardView({
 	return (
 		<div className="flex flex-col gap-3">
 			{!readOnly && (
-				<div className="flex items-center justify-between">
-					<Button size="sm" onClick={openCreate}>
-						<Plus className="size-4" /> Add line
-					</Button>
+
 					<ZoomBar dayWidth={dayWidth} onChange={setDayWidth} />
-				</div>
+
 			)}
 
 			<div
-				className="grid rounded-md border"
+				className="relative grid border-y"
 				style={{ gridTemplateColumns: "260px 1fr" }}
 			>
 				{/* Left column: row labels */}
@@ -251,7 +248,7 @@ export default function BoardView({
 						{lines.map((line, index) => (
 							<div
 								key={line.id}
-								className={`group flex items-center gap-1 border-b px-1 ${
+								className={`group relative flex items-center gap-1 border-b px-1 ${
 									reorderHover?.index === index &&
 									reorderHover.lineId !== line.id
 										? "bg-accent/50"
@@ -268,7 +265,7 @@ export default function BoardView({
 										onPointerUp={() => void onReorderEnd()}
 										aria-label={`Reorder ${line.item}`}
 									>
-										<GripVertical className="size-4" />
+										<DotsSixVerticalIcon className="size-4" />
 									</button>
 								)}
 								<button
@@ -282,9 +279,33 @@ export default function BoardView({
 								<span className="w-20 truncate text-muted-foreground text-xs">
 									{line.assignee}
 								</span>
+								{!readOnly && index < lines.length - 1 && createAt === null && (
+									<div className="pointer-events-none absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+										<button
+											type="button"
+											className="pointer-events-auto flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+											onClick={() => setCreateAt(index + 1)}
+											aria-label={`Insert line after ${line.item}`}
+										>
+											<PlusIcon className="size-3" />
+										</button>
+									</div>
+								)}
 							</div>
 						))}
 					</div>
+					{!readOnly && createAt === null && (
+						<button
+							type="button"
+							className={`flex w-full items-center gap-2 px-3 text-left text-muted-foreground text-sm hover:bg-accent/50 hover:text-foreground ${
+								lines.length === 0 ? "border-t" : ""
+							}`}
+							style={{ height: ROW_HEIGHT }}
+							onClick={() => setCreateAt(lines.length)}
+						>
+							<PlusIcon className="size-4" /> Add new line
+						</button>
+					)}
 				</div>
 
 				{/* Right column: the timeline */}
@@ -481,15 +502,24 @@ export default function BoardView({
 						})}
 					</div>
 				</div>
+
+				{!readOnly && createAt !== null && (
+					<InlineLineForm
+						key={createAt}
+						projectId={project.id}
+						top={HEADER_HEIGHT + createAt * ROW_HEIGHT}
+						beforeLine={lines[createAt - 1] ?? null}
+						afterLine={lines[createAt] ?? null}
+						onClose={() => setCreateAt(null)}
+					/>
+				)}
 			</div>
 
-			{!readOnly && linesCollection && (
+			{!readOnly && linesCollection && editingLine && (
 				<LineDialog
 					open={dialogOpen}
 					onOpenChange={setDialogOpen}
-					projectId={project.id}
 					line={editingLine}
-					lines={lines}
 					collection={linesCollection}
 				/>
 			)}
