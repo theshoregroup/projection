@@ -2,7 +2,11 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "pg";
-import { ADMIN_DATABASE_URL, TEST_DATABASE_NAME, TEST_DATABASE_URL } from "./connection";
+import {
+	ADMIN_DATABASE_URL,
+	TEST_DATABASE_NAME,
+	TEST_DATABASE_URL,
+} from "./connection";
 
 /**
  * Recreates the scratch database and pushes the current schema into it,
@@ -25,7 +29,10 @@ export default async function setup() {
 	await admin.query(`CREATE DATABASE ${TEST_DATABASE_NAME}`);
 	await admin.end();
 
-	const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	const packageRoot = path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		"..",
+	);
 
 	execSync("pnpm drizzle-kit push --force", {
 		cwd: packageRoot,

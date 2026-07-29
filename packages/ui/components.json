@@ -1,25 +1,25 @@
 {
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "base-nova",
-  "rsc": false,
-  "tsx": true,
-  "tailwind": {
-    "config": "",
-    "css": "src/styles/globals.css",
-    "baseColor": "taupe",
-    "cssVariables": true,
-    "prefix": ""
-  },
-  "iconLibrary": "phosphor",
-  "aliases": {
-    "components": "@projection/ui/components",
-    "utils": "@projection/ui/lib/utils",
-    "hooks": "@projection/ui/hooks",
-    "lib": "@projection/ui/lib",
-    "ui": "@projection/ui/components"
-  },
-  "menuColor": "inverted-translucent",
-  "menuAccent": "subtle",
-  "registries": {},
-  "rtl": false
+	"$schema": "https://ui.shadcn.com/schema.json",
+	"style": "base-nova",
+	"rsc": false,
+	"tsx": true,
+	"tailwind": {
+		"config": "",
+		"css": "src/styles/globals.css",
+		"baseColor": "taupe",
+		"cssVariables": true,
+		"prefix": ""
+	},
+	"iconLibrary": "phosphor",
+	"aliases": {
+		"components": "@projection/ui/components",
+		"utils": "@projection/ui/lib/utils",
+		"hooks": "@projection/ui/hooks",
+		"lib": "@projection/ui/lib",
+		"ui": "@projection/ui/components"
+	},
+	"menuColor": "inverted-translucent",
+	"menuAccent": "subtle",
+	"registries": {},
+	"rtl": false
 }

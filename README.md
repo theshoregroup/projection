@@ -85,9 +85,16 @@ projection/
 │   └── web/         # Fullstack application (React + TanStack Start)
 ├── packages/
 │   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
+│   ├── api/         # tRPC routers + domain rules (dates, ordering, permissions)
+│   ├── auth/        # Authentication configuration & logic (better-auth)
+│   ├── db/          # Drizzle schema, migrations and helpers (PlanetScale Postgres)
+│   ├── tasks/       # trigger.dev tasks (email + background work)
+│   ├── templates/   # react-email templates
+│   ├── env/         # Typed environment variables
+│   └── config/      # Shared TS config
 ```
+
+Domain language lives in `CONTEXT.md`; architectural decisions in `docs/adr/`.
 
 ## Available Scripts
 

@@ -5,11 +5,11 @@ services:
     image: postgres
     container_name: projection-postgres
     environment:
-      POSTGRES_DB: projection
+      POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
-      - "54325:5432"
+      - "54331:5432"
     volumes:
       - projection_postgres_data:/var/lib/postgresql
     healthcheck:

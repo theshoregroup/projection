@@ -1,4 +1,5 @@
 import { env } from "@projection/env/server";
+import ProjectInviteEmail from "@projection/templates/email/project/invite";
 import UserWelcomeEmail from "@projection/templates/email/user/welcome";
 import { render, toPlainText } from "@react-email/render";
 
@@ -13,7 +14,10 @@ export const resendQueue = queue({
 	concurrencyLimit: 15,
 });
 
-type EmailSchema<TData> = z.ZodObject<{ key: z.ZodLiteral<string>; data: z.ZodType<TData> }>;
+type EmailSchema<TData> = z.ZodObject<{
+	key: z.ZodLiteral<string>;
+	data: z.ZodType<TData>;
+}>;
 
 type EmailComponent<TData> = ((data: TData) => React.ReactElement) & {
 	schema: EmailSchema<TData>;
@@ -22,7 +26,10 @@ type EmailComponent<TData> = ((data: TData) => React.ReactElement) & {
 type TemplateEntry = {
 	// biome-ignore lint/suspicious/noExplicitAny: typing
 	schema: EmailSchema<any>;
-	renderWithProps: (props: { key: string; data: unknown }) => React.ReactElement;
+	renderWithProps: (props: {
+		key: string;
+		data: unknown;
+	}) => React.ReactElement;
 };
 
 function registerEmail<TData>(component: EmailComponent<TData>): TemplateEntry {
@@ -37,9 +44,12 @@ function registerEmail<TData>(component: EmailComponent<TData>): TemplateEntry {
 
 const emailRegistry = [
 	registerEmail(UserWelcomeEmail),
+	registerEmail(ProjectInviteEmail),
 ];
 
-const emailTemplatesByKey = Object.fromEntries(emailRegistry.map((e) => [e.schema.shape.key.value, e]));
+const emailTemplatesByKey = Object.fromEntries(
+	emailRegistry.map((e) => [e.schema.shape.key.value, e]),
+);
 
 const singleOrArrayOfEmails = z.email().or(z.email().array());
 
@@ -56,7 +66,10 @@ const emailTaskSchema = z.object({
 	cc: singleOrArrayOfEmails.optional(),
 	subject: z.string().min(2),
 
-	props: z.discriminatedUnion("key", [UserWelcomeEmail.schema]),
+	props: z.discriminatedUnion("key", [
+		UserWelcomeEmail.schema,
+		ProjectInviteEmail.schema,
+	]),
 });
 
 export const sendEmail = schemaTask({
@@ -68,7 +81,9 @@ export const sendEmail = schemaTask({
 			const template = emailTemplatesByKey[props.key];
 
 			if (!template) {
-				throw new AbortTaskRunError(`Key "${props.key}" doesn't correspond to any valid email`);
+				throw new AbortTaskRunError(
+					`Key "${props.key}" doesn't correspond to any valid email`,
+				);
 			}
 
 			const html = await render(template.renderWithProps(props));
@@ -94,11 +109,16 @@ export const sendEmail = schemaTask({
 					// Treat 5xx/429 as retryable, typical 4xx as non-retryable
 					const msg = String(error.message ?? error);
 					const code = Number(error.statusCode ?? 0);
-					const retryable = code === 429 || (code >= 500 && code <= 599) || /timeout/i.test(msg);
+					const retryable =
+						code === 429 ||
+						(code >= 500 && code <= 599) ||
+						/timeout/i.test(msg);
 
 					if (!retryable) {
 						// Don’t keep retrying on hard failures (e.g., invalid recipient)
-						throw new AbortTaskRunError(`Non-retryable send error (${code}): ${msg}`);
+						throw new AbortTaskRunError(
+							`Non-retryable send error (${code}): ${msg}`,
+						);
 					}
 
 					// Throw to use task/backoff retries
