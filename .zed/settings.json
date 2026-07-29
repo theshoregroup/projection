@@ -1,0 +1,37 @@
+{
+	"code_actions_on_format": {
+		"source.organizeImports.biome": true,
+		"source.fixAll.biome": true
+	},
+	"lsp": {
+		"tailwindcss-language-server": {
+			"settings": {
+				"experimental": {
+					"configFile": "packages/ui/src/styles/globals.css",
+					"classRegex": ["[cls|className]\\s\\:\\=\\s\"([^\"]*)"]
+				},
+				"classFunctions": ["cva", "cx"]
+			}
+		},
+		// Enable Expanded Ram for VTSLS
+		"vtsls": {
+			"settings": {
+				"typescript": { "tsserver": { "maxTsServerMemory": 16184 } },
+				"javascript": { "tsserver": { "maxTsServerMemory": 16184 } }
+			}
+		}
+	},
+	"languages": {
+		"CSS": {
+			"language_servers": ["tailwindcss-intellisense-css", "!vscode-css-language-server"],
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+
+		"HTML": { "formatter": { "language_server": { "name": "biome" } } },
+		"JSON": { "formatter": { "language_server": { "name": "biome" } } },
+		"JSONC": { "formatter": { "language_server": { "name": "biome" } } },
+		"JavaScript": { "formatter": { "language_server": { "name": "biome" } } },
+		"TSX": { "formatter": { "language_server": { "name": "biome" } } },
+		"TypeScript": { "formatter": { "language_server": { "name": "biome" } } }
+	}
+}
