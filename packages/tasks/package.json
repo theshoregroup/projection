@@ -1,0 +1,34 @@
+{
+	"name": "@projection/tasks",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		},
+		"./*": {
+			"default": "./src/tasks/*.task.ts"
+		}
+	},
+	"scripts": {
+		"cli": "pnpm trigger",
+		"dev": "pnpm trigger dev",
+		"check:types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@projection/db": "workspace:*",
+		"@projection/env": "workspace:*",
+		"@projection/templates": "workspace:*",
+		"@react-email/render": "2.0.6",
+		"@theshoregroup/time": "^0.1.0",
+		"@trigger.dev/sdk": "4.4.3",
+		"dotenv": "catalog:",
+		"resend": "^6.10.0",
+		"trigger.dev": "4.4.3",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@projection/config": "workspace:*",
+		"@trigger.dev/build": "4.4.3",
+		"typescript": "^5"
+	}
+}

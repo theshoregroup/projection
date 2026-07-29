@@ -1,0 +1,39 @@
+{
+	"name": "@projection/db",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		},
+		"./helpers": {
+			"default": "./src/helpers.ts"
+		},
+		"./schema/*": {
+			"default": "./src/schema/*.ts"
+		}
+	},
+	"scripts": {
+		"img": "docker compose",
+		"img:recreate": "docker compose up -d --force-recreate",
+		"kit": "pnpm drizzle-kit",
+		"dev": "pnpm img up -d; pnpm kit studio",
+		"check:types": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@projection/env": "workspace:*",
+		"@theshoregroup/time": "^0.1.0",
+		"dotenv": "catalog:",
+		"drizzle-orm": "catalog:",
+		"pg": "^8.20.0",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@projection/config": "workspace:*",
+		"@types/node": "catalog:",
+		"@types/pg": "^8.20.0",
+		"drizzle-kit": "1.0.0-rc.3",
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.4"
+	}
+}

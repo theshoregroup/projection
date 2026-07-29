@@ -1,23 +1,29 @@
 {
-  "name": "@projection/auth",
-  "type": "module",
-  "exports": {
-    ".": {
-      "default": "./src/index.ts"
-    },
-    "./*": {
-      "default": "./src/*.ts"
-    }
-  },
-  "scripts": {},
-  "dependencies": {
-    "@projection/env": "workspace:*",
-    "better-auth": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@projection/config": "workspace:*",
-    "typescript": "catalog:"
-  }
+	"name": "@projection/auth",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/auth.ts"
+		},
+		"./*": {
+			"default": "./src/*.ts"
+		}
+	},
+	"scripts": {
+		"cli": "SKIP_SERVER_ENV_VALIDATION=1 DUMMY_ENV=1 pnpx auth@1.7.0-rc.2",
+		"generate": "pnpm cli generate --output ../../packages/db/src/schema/auth.ts",
+		"check:types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@projection/env": "workspace:*",
+			"@better-auth/drizzle-adapter": "1.7.0-rc.2",
+		"@projection/db": "workspace:*",
+		"better-auth": "catalog:",
+		"dotenv": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@projection/config": "workspace:*",
+		"typescript": "catalog:"
+	}
 }

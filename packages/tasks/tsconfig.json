@@ -1,0 +1,7 @@
+{
+	"extends": "@projection/config/tsconfig.base.json",
+	"include": ["src/**/*.ts", "src/**/*.tsx", "trigger.config.ts"],
+	"compilerOptions": {
+		"jsx": "react-jsx"
+	}
+}
