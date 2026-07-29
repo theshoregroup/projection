@@ -11,6 +11,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import CreateProjectDialog from "@/components/create-project-dialog";
+import { authClient } from "@/lib/auth-client";
 import { getProjectsCollection, type ProjectsRow } from "@/lib/collections";
 import { useTRPCClient } from "@/utils/trpc";
 
@@ -58,6 +59,7 @@ function ProjectCards({
 function Dashboard() {
 	const queryClient = useQueryClient();
 	const trpcClient = useTRPCClient();
+	const { data: sessionData } = authClient.useSession();
 	const projects = useMemo(
 		() => getProjectsCollection(queryClient, trpcClient),
 		[queryClient, trpcClient],
@@ -81,15 +83,25 @@ function Dashboard() {
 	);
 
 	return (
-		<div className="mx-auto w-full max-w-6xl space-y-10 p-6">
-			<div className="flex items-center justify-between">
-				<h1 className="font-semibold text-2xl">My projects</h1>
-				<CreateProjectDialog trigger={<Button>New project</Button>} />
-			</div>
-			<ProjectCards
-				projects={mine ?? []}
-				empty="No projects yet — create your first one."
-			/>
+		<div className="container mx-auto space-y-6 p-6">
+			<Card className="w-full py-10">
+				<CardContent>
+					<h1 className="text-center font-medium text-3xl">
+						Welcome back {sessionData?.user.name.split(" ").at(0)}
+					</h1>
+				</CardContent>
+			</Card>
+
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<h2 className="font-semibold text-xl">My projects</h2>
+					<CreateProjectDialog trigger={<Button>New project</Button>} />
+				</div>
+				<ProjectCards
+					projects={mine ?? []}
+					empty="No projects yet — create your first one."
+				/>
+      </div>
 
 			<div className="space-y-4">
 				<h2 className="font-semibold text-xl">Shared with me</h2>
@@ -100,4 +112,6 @@ function Dashboard() {
 			</div>
 		</div>
 	);
+
+
 }
