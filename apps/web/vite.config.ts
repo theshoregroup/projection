@@ -5,7 +5,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import "@projection/env/server";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
 	server: {
 		port: 3001,
 	},
@@ -13,8 +13,8 @@ export default defineConfig({
 		tsconfigPaths: true,
 	},
 	plugins: [tailwindcss(), tanstackStart(), nitro(), viteReact()],
-	// Bundle all SSR deps: Vercel functions have no node_modules at runtime
-	ssr: {
-		// noExternal: true,
-	},
-});
+	// Bundle all SSR deps into the server build: deployed Vercel functions
+	// have no node_modules at runtime. Build-only — in dev the SSR module
+	// runner can't inline CJS deps like react ("module is not defined").
+	ssr: command === "build" ? { noExternal: true } : {},
+}));
