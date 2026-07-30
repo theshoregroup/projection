@@ -5,6 +5,7 @@ import {
 	notFound,
 } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
 import {
 	createTRPCClient,
@@ -47,30 +48,34 @@ function createQueryClient() {
 	});
 }
 
+// The tRPC fetch runs in both environments. createIsomorphicFn splits it
+// into per-environment implementations at build time: each bundle only gets
+// its own implementation, so the server-only imports above never reach the
+// client bundle.
+const ssrAwareFetch = createIsomorphicFn()
+	.server((url: RequestInfo | URL, options?: RequestInit) => {
+		// SSR: Node's fetch requires an absolute URL, and the incoming
+		// request's cookies must be forwarded explicitly for auth.
+		const headers = new Headers(options?.headers);
+		const cookie = getRequestHeaders().get("cookie");
+		if (cookie) {
+			headers.set("cookie", cookie);
+		}
+		return fetch(new URL(String(url), getRequestUrl().origin), {
+			...options,
+			headers,
+		});
+	})
+	.client((url: RequestInfo | URL, options?: RequestInit) =>
+		fetch(url, { ...options, credentials: "include" }),
+	);
+
 const trpcClient = createTRPCClient<AppRouter>({
 	links: [
 		httpBatchLink({
 			url: "/api/trpc",
 			transformer: SuperJSON,
-			fetch(url, options) {
-				if (typeof window === "undefined") {
-					// SSR: Node's fetch requires an absolute URL, and the incoming
-					// request's cookies must be forwarded explicitly for auth.
-					const headers = new Headers(options?.headers);
-					const cookie = getRequestHeaders().get("cookie");
-					if (cookie) {
-						headers.set("cookie", cookie);
-					}
-					return fetch(new URL(String(url), getRequestUrl().origin), {
-						...options,
-						headers,
-					});
-				}
-				return fetch(url, {
-					...options,
-					credentials: "include",
-				});
-			},
+			fetch: ssrAwareFetch,
 		}),
 	],
 });
