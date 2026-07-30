@@ -2,8 +2,9 @@ import { ShareFatIcon } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@projection/ui/components/button";
 
 import { SidebarTrigger } from "@projection/ui/components/sidebar";
+import { Skeleton } from "@projection/ui/components/skeleton";
 import { useLiveQuery } from "@tanstack/react-db";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import BoardView from "@/components/board/board-view";
@@ -25,7 +26,31 @@ export const Route = createFileRoute("/_auth/projects/$projectId")({
 			</div>
 		);
 	},
+	pendingComponent: () => <PendingPageComponent />,
 });
+
+function ShareButton() {
+	return (
+    <Button size="sm">
+			<ShareFatIcon className="size-4" /> Share
+		</Button>
+	);
+}
+
+function PendingPageComponent() {
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex items-start justify-between gap-4 p-4">
+				<div className="space-y-2">
+					<SidebarTrigger />
+					<Skeleton className="h-8 w-80 max-w-80" />
+					<Skeleton className="h-4 w-96 max-w-96" />
+				</div>
+				<ShareButton />
+			</div>
+		</div>
+	);
+}
 
 function ProjectPage() {
 	const { projectId } = Route.useParams();
@@ -33,7 +58,7 @@ function ProjectPage() {
 	const trpcClient = useTRPCClient();
 	const queryClient = useQueryClient();
 
-	const projectQuery = useQuery(
+	const projectQuery = useSuspenseQuery(
 		trpc.projects.byId.queryOptions(
 			{ id: projectId },
 			{
@@ -77,15 +102,7 @@ function ProjectPage() {
 						</p>
 					) : null}
 				</div>
-				<SharePanel
-					project={project}
-					role={role}
-					trigger={
-						<Button variant="outline" size="sm">
-							<ShareFatIcon className="size-4" /> Share
-						</Button>
-					}
-				/>
+				<SharePanel project={project} role={role} trigger={<ShareButton />} />
 			</div>
 
 			<BoardView

@@ -1,11 +1,19 @@
 import type { AppRouter } from "@projection/api/routers/index";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import { createRouter as createTanStackRouter, notFound } from "@tanstack/react-router";
+import {
+	createRouter as createTanStackRouter,
+	notFound,
+} from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import { createTRPCClient, httpBatchLink, isTRPCClientError } from "@trpc/client";
+import { getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
+import {
+	createTRPCClient,
+	httpBatchLink,
+	isTRPCClientError,
+} from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { toast } from "sonner";
-
+import SuperJSON from "superjson";
 import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
@@ -13,9 +21,14 @@ import { TRPCProvider } from "./utils/trpc";
 function createQueryClient() {
 	return new QueryClient({
 		queryCache: new QueryCache({
-      onError: (error, query) => {
+			onError: (error, query) => {
+				console.log(error);
 
-        if (isTRPCClientError(error) && !query.meta?.disableThrowOnNotFound) {
+				if (
+					isTRPCClientError(error) &&
+					error.data?.code === "NOT_FOUND" &&
+					!query.meta?.disableThrowOnNotFound
+				) {
 					query.cancel();
 					throw notFound({ data: error });
 				}
@@ -38,7 +51,21 @@ const trpcClient = createTRPCClient<AppRouter>({
 	links: [
 		httpBatchLink({
 			url: "/api/trpc",
+			transformer: SuperJSON,
 			fetch(url, options) {
+				if (typeof window === "undefined") {
+					// SSR: Node's fetch requires an absolute URL, and the incoming
+					// request's cookies must be forwarded explicitly for auth.
+					const headers = new Headers(options?.headers);
+					const cookie = getRequestHeaders().get("cookie");
+					if (cookie) {
+						headers.set("cookie", cookie);
+					}
+					return fetch(new URL(String(url), getRequestUrl().origin), {
+						...options,
+						headers,
+					});
+				}
 				return fetch(url, {
 					...options,
 					credentials: "include",

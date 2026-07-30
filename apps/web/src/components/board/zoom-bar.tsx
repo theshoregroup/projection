@@ -14,7 +14,11 @@ export default function ZoomBar({
 	onChange: (dayWidth: number) => void;
 }) {
 	return (
-		<div className="absolute bottom-2 left-2 flex w-52 items-center gap-2 bg-background/30 backdrop-blur-3xl">
+		// Fixed, not absolute: main is the page's full height, so an absolutely
+		// positioned bar would sit at the bottom of the *content* and scroll
+		// away. Fixed pins it to the viewport's bottom-right — main's right
+		// edge — where it follows scrolling.
+		<div className="fixed right-4 bottom-4 z-50 flex w-52 items-center gap-2 rounded-lg border bg-background/95 p-2 shadow-md backdrop-blur">
 			<MagnifyingGlassMinusIcon className="size-4 text-muted-foreground" />
 			<Slider
 				min={MIN_DAY_WIDTH}

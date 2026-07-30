@@ -1,15 +1,17 @@
 import {
+	CaretLeftIcon,
+	CaretRightIcon,
 	DotsSixVerticalIcon,
 	PlusIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { addDays, deriveWindow } from "@projection/api/domain/dates";
+import { addDays, deriveWindow, diffDays } from "@projection/api/domain/dates";
 import { sortOrderBetween } from "@projection/api/domain/ordering";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import InlineLineForm from "@/components/board/inline-line-form";
-import LineDialog from "@/components/board/line-dialog";
+import BarPopover from "@/components/board/bar-popover";
+import InlineTextEdit from "@/components/board/inline-text-edit";
 import ZoomBar from "@/components/board/zoom-bar";
 import { assigneeColor } from "@/lib/board-layout/colors";
 import {
@@ -17,12 +19,16 @@ import {
 	boardHeight,
 	boardWidth,
 	DEFAULT_DAY_WIDTH,
+	dateToX,
 	type Geometry,
 	HEADER_HEIGHT,
+	offscreenSide,
 	ROW_HEIGHT,
 	rowY,
 	ticksFor,
+	type Viewport,
 	weekendSpans,
+	xToDate,
 } from "@/lib/board-layout/geometry";
 import type { getLinesCollection, LineRow } from "@/lib/collections";
 import { useTRPCClient } from "@/utils/trpc";
@@ -45,6 +51,10 @@ interface DragState {
 	pointerStartX: number;
 	origStart: string;
 	origEnd: string;
+	/** Whether the pointer actually moved dates — a click opens the popover. */
+	moved: boolean;
+	/** The bar element grabbed (popover anchor when clicked). */
+	target: Element;
 }
 
 const BAR_INSET = 1;
@@ -85,30 +95,84 @@ export default function BoardView({
 		startDate: string;
 		endDate: string;
 	} | null>(null);
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [editingLine, setEditingLine] = useState<LineRow | null>(null);
-	/** Row index the inline creation panel inserts at (null = closed). */
-	const [createAt, setCreateAt] = useState<number | null>(null);
+	/** Row index the inline create row is open at (null = closed). */
+	const [creatingAt, setCreatingAt] = useState<number | null>(null);
+	/** The bar popover's Line and anchor element (null = closed). */
+	const [barPopover, setBarPopover] = useState<{
+		lineId: string;
+		anchor: Element;
+	} | null>(null);
+	/** Timeline draw-to-create: span preview while dragging (null = not drawing). */
+	const [createPreview, setCreatePreview] = useState<{
+		startDate: string;
+		endDate: string;
+		row: number;
+	} | null>(null);
+	/** Hovered empty Timeline day cell, for the "+" ghost. */
+	const [hoverCell, setHoverCell] = useState<{
+		date: string;
+		row: number;
+	} | null>(null);
+	/** True while hovering a row that already has a Line (no creation there). */
+	const [hoverBlocked, setHoverBlocked] = useState(false);
+	/** A just-drawn Line whose Item cell should open for naming. */
+	const [editingItemId, setEditingItemId] = useState<string | null>(null);
 	const [reorderHover, setReorderHover] = useState<{
 		lineId: string;
 		index: number;
 	} | null>(null);
 
 	const dragRef = useRef<DragState | null>(null);
+	/** A bar press that turned out to be a click — consumed by onBarClick. */
+	const clickCandidateRef = useRef<{
+		lineId: string;
+		target: Element;
+	} | null>(null);
 	const reorderRef = useRef<{ lineId: string } | null>(null);
+	const createDragRef = useRef<{
+		startDate: string;
+		endDate: string;
+		row: number;
+		moved: boolean;
+	} | null>(null);
 	const rowsRef = useRef<HTMLDivElement | null>(null);
+	const scrollerRef = useRef<HTMLDivElement | null>(null);
+	/** The Timeline's visible X range — drives the offscreen nudges. */
+	const [viewport, setViewport] = useState<Viewport | null>(null);
 
 	const window = deriveWindow(lines, project);
 	const geom: Geometry = { start: window.start, end: window.end, dayWidth };
 	const width = boardWidth(geom);
 	const height = boardHeight(lines.length);
+	// Editable boards extend one row below the last Line: the draw-to-create
+	// band for a new Line (aligns with the "Add new line" footer row). With no
+	// Lines the phantom row from boardHeight already *is* that band.
+	const svgHeight = height + (readOnly || lines.length === 0 ? 0 : ROW_HEIGHT);
 	const ticks = ticksFor(geom);
 	const weekends = weekendSpans(geom);
 
-	function openEdit(line: LineRow) {
-		if (readOnly) return;
-		setEditingLine(line);
-		setDialogOpen(true);
+	// Track the Timeline's scroll viewport (the window fits every Line, so
+	// "offscreen" means outside the *scrolled-to* region, not the window).
+	useEffect(() => {
+		const el = scrollerRef.current;
+		if (!el) return;
+		const measure = () =>
+			setViewport({
+				startX: el.scrollLeft,
+				endX: el.scrollLeft + el.clientWidth,
+			});
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
+
+	function onTimelineScroll(event: React.UIEvent<HTMLDivElement>) {
+		const el = event.currentTarget;
+		setViewport({
+			startX: el.scrollLeft,
+			endX: el.scrollLeft + el.clientWidth,
+		});
 	}
 
 	// --- Drag move / resize -------------------------------------------------
@@ -122,6 +186,8 @@ export default function BoardView({
 			pointerStartX: event.clientX,
 			origStart: line.startDate,
 			origEnd: line.endDate,
+			moved: false,
+			target: event.currentTarget as Element,
 		};
 	}
 
@@ -131,6 +197,7 @@ export default function BoardView({
 		const deltaDays = Math.round(
 			(event.clientX - drag.pointerStartX) / dayWidth,
 		);
+		if (deltaDays !== 0) drag.moved = true;
 		let start = drag.origStart;
 		let end = drag.origEnd;
 		if (drag.mode === "move") {
@@ -149,7 +216,23 @@ export default function BoardView({
 	function onDragEnd() {
 		const drag = dragRef.current;
 		dragRef.current = null;
-		if (drag && preview && preview.lineId === drag.lineId && linesCollection) {
+		if (drag && !drag.moved && drag.mode === "move") {
+			// A click, not a drag — record it. The popover opens on the trailing
+			// `click` event: opening on pointerup races the popover's
+			// outside-press dismissal, which itself listens for `click`.
+			clickCandidateRef.current = {
+				lineId: drag.lineId,
+				target: drag.target,
+			};
+			setPreview(null);
+			return;
+		}
+		if (
+			drag?.moved &&
+			preview &&
+			preview.lineId === drag.lineId &&
+			linesCollection
+		) {
 			const { startDate, endDate } = preview;
 			linesCollection.update(drag.lineId, (draft) => {
 				draft.startDate = startDate;
@@ -157,6 +240,14 @@ export default function BoardView({
 			});
 		}
 		setPreview(null);
+	}
+
+	/** Opens the clicked bar's popover (the press was recorded in onDragEnd). */
+	function onBarClick(lineId: string) {
+		const candidate = clickCandidateRef.current;
+		clickCandidateRef.current = null;
+		if (!candidate || candidate.lineId !== lineId) return;
+		setBarPopover({ lineId, anchor: candidate.target });
 	}
 
 	// --- Row reorder ----------------------------------------------------------
@@ -214,15 +305,174 @@ export default function BoardView({
 		}
 	}
 
+	// --- Inline edits / creation ----------------------------------------------
+
+	async function commitField(
+		line: LineRow,
+		field: "item" | "assignee",
+		text: string,
+	) {
+		if (!linesCollection) return;
+		try {
+			await linesCollection.update(line.id, (draft) => {
+				if (field === "item") draft.item = text;
+				else draft.assignee = text || null;
+			}).isPersisted.promise;
+		} catch {
+			// The collection rolled the optimistic change back
+			toast.error("Couldn't save — your change was undone. Try again.");
+			throw new Error("Persist failed");
+		}
+	}
+
+	async function createLine(
+		item: string,
+		index: number,
+		dates?: { startDate: string; endDate: string; isMilestone?: boolean },
+	) {
+		if (!linesCollection) return;
+		try {
+			const created = await trpcClient.lines.create.mutate({
+				projectId: project.id,
+				item,
+				// Default: a single day at the Project's seed start — drag the
+				// bar to reschedule.
+				startDate: dates?.startDate ?? project.seedStart,
+				endDate: dates?.endDate ?? project.seedStart,
+				isMilestone: dates?.isMilestone ?? false,
+				beforeLineId: lines[index - 1]?.id ?? null,
+				afterLineId: lines[index]?.id ?? null,
+			});
+			// The lines collection syncs off this query key (see lib/collections)
+			await queryClient.invalidateQueries({
+				queryKey: ["collection", "lines", project.id],
+			});
+			return created;
+		} catch {
+			toast.error("Couldn't save — try again.");
+			throw new Error("Persist failed");
+		}
+	}
+
+	// --- Draw-to-create on empty Timeline space -------------------------------
+
+	/** Draw a new Line where the pointer landed: the Line takes that row and
+	 * its Item cell opens for naming. */
+	async function createLineAt(
+		row: number,
+		startDate: string,
+		endDate: string,
+		isMilestone: boolean,
+	) {
+		try {
+			const created = await createLine("New line", row, {
+				startDate,
+				endDate,
+				isMilestone,
+			});
+			if (created) setEditingItemId(created.id);
+		} catch {
+			// createLine already toasted
+		}
+	}
+
+	/** Date + row under a Timeline pointer (x clamped to the window). Row
+	 * lines.length = the empty bottom band below the last Line — the only
+	 * draw-to-create target. Rows that already have a Line are "occupied". */
+	function backgroundPoint(event: React.PointerEvent): {
+		date: string;
+		row: number;
+		inHeader: boolean;
+		occupied: boolean;
+	} {
+		const bounds = event.currentTarget.getBoundingClientRect();
+		const x = Math.max(0, Math.min(width, event.clientX - bounds.left));
+		const y = event.clientY - bounds.top;
+		const inHeader = y < HEADER_HEIGHT;
+		const row = Math.max(
+			0,
+			Math.min(lines.length, Math.floor((y - HEADER_HEIGHT) / ROW_HEIGHT)),
+		);
+		return {
+			date: xToDate(geom, x),
+			row,
+			inHeader,
+			occupied: !inHeader && row < lines.length,
+		};
+	}
+
+	function onBackgroundDown(event: React.PointerEvent) {
+		if (readOnly || !linesCollection) return;
+		const point = backgroundPoint(event);
+		if (point.inHeader || point.occupied) return;
+		(event.currentTarget as Element).setPointerCapture(event.pointerId);
+		createDragRef.current = {
+			startDate: point.date,
+			endDate: point.date,
+			row: point.row,
+			moved: false,
+		};
+		setHoverCell(null);
+		setCreatePreview({
+			startDate: point.date,
+			endDate: point.date,
+			row: point.row,
+		});
+	}
+
+	function onBackgroundMove(event: React.PointerEvent) {
+		const point = backgroundPoint(event);
+		const drag = createDragRef.current;
+		if (!drag) {
+			// Only update when the day cell actually changes (per-mousemove churn)
+			setHoverCell((prev) => {
+				if (point.inHeader || point.occupied)
+					return prev === null ? prev : null;
+				return prev?.date === point.date && prev.row === point.row
+					? prev
+					: { date: point.date, row: point.row };
+			});
+			setHoverBlocked((prev) =>
+				prev === point.occupied ? prev : point.occupied,
+			);
+			return;
+		}
+		drag.endDate = point.date;
+		if (point.date !== drag.startDate) drag.moved = true;
+		setCreatePreview({
+			startDate: drag.endDate < drag.startDate ? drag.endDate : drag.startDate,
+			endDate: drag.endDate < drag.startDate ? drag.startDate : drag.endDate,
+			row: drag.row,
+		});
+	}
+
+	function onBackgroundUp() {
+		const drag = createDragRef.current;
+		createDragRef.current = null;
+		setCreatePreview(null);
+		if (!drag) return;
+		// A click (no movement) creates a Milestone on that day; a drag a bar
+		const startDate =
+			drag.endDate < drag.startDate ? drag.endDate : drag.startDate;
+		const endDate =
+			drag.endDate < drag.startDate ? drag.startDate : drag.endDate;
+		void createLineAt(drag.row, startDate, endDate, !drag.moved);
+	}
+
+	function onBackgroundCancel() {
+		createDragRef.current = null;
+		setCreatePreview(null);
+	}
+
 	// --- Render ---------------------------------------------------------------
+
+	const popoverLine = barPopover
+		? lines.find((line) => line.id === barPopover.lineId)
+		: undefined;
 
 	return (
 		<div className="flex flex-col gap-3">
-			{!readOnly && (
-
-					<ZoomBar dayWidth={dayWidth} onChange={setDayWidth} />
-
-			)}
+			{!readOnly && <ZoomBar dayWidth={dayWidth} onChange={setDayWidth} />}
 
 			<div
 				className="relative grid border-y"
@@ -245,63 +495,91 @@ export default function BoardView({
 									: "No lines yet — add your first one."}
 							</div>
 						) : null}
+						{lines.length === 0 && creatingAt === 0 && (
+							<CreateLineRow
+								onCommit={async (text) => {
+									await createLine(text, 0);
+								}}
+								onDone={() => setCreatingAt(null)}
+							/>
+						)}
 						{lines.map((line, index) => (
-							<div
-								key={line.id}
-								className={`group relative flex items-center gap-1 border-b px-1 ${
-									reorderHover?.index === index &&
-									reorderHover.lineId !== line.id
-										? "bg-accent/50"
-										: ""
-								}`}
-								style={{ height: ROW_HEIGHT }}
-							>
-								{!readOnly && (
-									<button
-										type="button"
-										className="cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-										onPointerDown={(event) => startReorder(event, line.id)}
-										onPointerMove={onReorderMove}
-										onPointerUp={() => void onReorderEnd()}
-										aria-label={`Reorder ${line.item}`}
-									>
-										<DotsSixVerticalIcon className="size-4" />
-									</button>
-								)}
-								<button
-									type="button"
-									className="flex-1 truncate text-left text-sm hover:underline disabled:cursor-default disabled:no-underline"
-									onClick={() => openEdit(line)}
-									disabled={readOnly}
+							<Fragment key={line.id}>
+								<div
+									className={`group relative flex items-center gap-1 border-b px-1 ${
+										reorderHover?.index === index &&
+										reorderHover.lineId !== line.id
+											? "bg-accent/50"
+											: ""
+									}`}
+									style={{ height: ROW_HEIGHT }}
 								>
-									{line.item}
-								</button>
-								<span className="w-20 truncate text-muted-foreground text-xs">
-									{line.assignee}
-								</span>
-								{!readOnly && index < lines.length - 1 && createAt === null && (
-									<div className="pointer-events-none absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+									{!readOnly && (
 										<button
 											type="button"
-											className="pointer-events-auto flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground"
-											onClick={() => setCreateAt(index + 1)}
-											aria-label={`Insert line after ${line.item}`}
+											className="cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+											onPointerDown={(event) => startReorder(event, line.id)}
+											onPointerMove={onReorderMove}
+											onPointerUp={() => void onReorderEnd()}
+											aria-label={`Reorder ${line.item}`}
 										>
-											<PlusIcon className="size-3" />
+											<DotsSixVerticalIcon className="size-4" />
 										</button>
-									</div>
+									)}
+									<InlineTextEdit
+										key={`${line.id}-${line.id === editingItemId}`}
+										value={line.item}
+										startActive={line.id === editingItemId}
+										disabled={readOnly || !linesCollection}
+										className="flex-1 text-sm"
+										onCommit={(text) => commitField(line, "item", text)}
+										onDone={
+											line.id === editingItemId
+												? () => setEditingItemId(null)
+												: undefined
+										}
+									/>
+									<InlineTextEdit
+										value={line.assignee ?? ""}
+										disabled={readOnly || !linesCollection}
+										allowEmpty
+										className="w-20 shrink-0 text-muted-foreground text-xs"
+										onCommit={(text) => commitField(line, "assignee", text)}
+									/>
+									{!readOnly &&
+										index < lines.length - 1 &&
+										creatingAt === null && (
+											<div className="pointer-events-none absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+												<button
+													type="button"
+													className="pointer-events-auto flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+													onClick={() => setCreatingAt(index + 1)}
+													aria-label={`Insert line after ${line.item}`}
+												>
+													<PlusIcon className="size-3" />
+												</button>
+											</div>
+										)}
+								</div>
+								{creatingAt === index + 1 && (
+									<CreateLineRow
+										onCommit={async (text) => {
+											await createLine(text, index + 1);
+										}}
+										onDone={() => setCreatingAt(null)}
+									/>
 								)}
-							</div>
+							</Fragment>
 						))}
 					</div>
-					{!readOnly && createAt === null && (
+					{!readOnly && creatingAt === null && (
 						<button
 							type="button"
 							className={`flex w-full items-center gap-2 px-3 text-left text-muted-foreground text-sm hover:bg-accent/50 hover:text-foreground ${
 								lines.length === 0 ? "border-t" : ""
 							}`}
 							style={{ height: ROW_HEIGHT }}
-							onClick={() => setCreateAt(lines.length)}
+							onClick={() => setCreatingAt(lines.length)}
 						>
 							<PlusIcon className="size-4" /> Add new line
 						</button>
@@ -309,16 +587,50 @@ export default function BoardView({
 				</div>
 
 				{/* Right column: the timeline */}
-				<div className="overflow-x-auto">
-					<div className="relative" style={{ width, height }}>
+				<div
+					className="overflow-x-auto"
+					ref={scrollerRef}
+					onScroll={onTimelineScroll}
+				>
+					<div className="relative" style={{ width, height: svgHeight }}>
 						<svg
 							width={width}
-							height={height}
+							height={svgHeight}
 							className="block text-border"
 							role="img"
 							aria-label={`Timeline of ${project.name}`}
 						>
 							<title>{`Timeline of ${project.name}`}</title>
+							{/* Background: draw-to-create lives here, but only on the empty
+							 * bottom band — rows that already have a Line are not targets.
+							 * Decorative layers above stay pointer-events-none so this rect
+							 * receives gestures; bars sit on top and take their own. */}
+							<rect
+								x={0}
+								y={0}
+								width={width}
+								height={svgHeight}
+								fill="transparent"
+								className={
+									readOnly
+										? ""
+										: hoverCell || createPreview
+											? "cursor-cell touch-none"
+											: hoverBlocked
+												? "cursor-not-allowed touch-none"
+												: "touch-none"
+								}
+								onPointerDown={onBackgroundDown}
+								onPointerMove={onBackgroundMove}
+								onPointerUp={onBackgroundUp}
+								onPointerCancel={onBackgroundCancel}
+								onPointerLeave={() => {
+									if (!createDragRef.current) {
+										setHoverCell(null);
+										setHoverBlocked(false);
+									}
+								}}
+							/>
 							{/* Weekend shading (calendar days — shaded, not excluded) */}
 							{weekends.map((span) => (
 								<rect
@@ -326,8 +638,8 @@ export default function BoardView({
 									x={span.x}
 									y={0}
 									width={span.width}
-									height={height}
-									className="fill-muted-foreground/10"
+									height={svgHeight}
+									className="pointer-events-none fill-muted-foreground/10"
 								/>
 							))}
 
@@ -338,9 +650,10 @@ export default function BoardView({
 									x1={tick.x}
 									x2={tick.x}
 									y1={HEADER_HEIGHT - 16}
-									y2={height}
+									y2={svgHeight}
 									stroke="currentColor"
 									strokeOpacity={tick.major ? 0.9 : 0.35}
+									className="pointer-events-none"
 								/>
 							))}
 
@@ -354,6 +667,7 @@ export default function BoardView({
 									y2={rowY(index) + ROW_HEIGHT - 0.5}
 									stroke="currentColor"
 									strokeOpacity={0.5}
+									className="pointer-events-none"
 								/>
 							))}
 
@@ -380,6 +694,7 @@ export default function BoardView({
 											onPointerDown={(event) => startDrag(event, line, "move")}
 											onPointerMove={onDragMove}
 											onPointerUp={onDragEnd}
+											onClick={() => onBarClick(line.id)}
 										>
 											<title>{tooltip}</title>
 											<path d={diamondPath(bar.x, cy)} fill={color} />
@@ -394,6 +709,7 @@ export default function BoardView({
 										key={line.id}
 										onPointerMove={onDragMove}
 										onPointerUp={onDragEnd}
+										onClick={() => onBarClick(line.id)}
 									>
 										<title>{tooltip}</title>
 										<rect
@@ -455,12 +771,41 @@ export default function BoardView({
 									key={`label-${tick.date}`}
 									x={tick.x + 4}
 									y={HEADER_HEIGHT - 22}
-									className={`fill-muted-foreground text-[11px] ${tick.major ? "font-medium" : ""}`}
+									className={`pointer-events-none fill-muted-foreground text-[11px] ${tick.major ? "font-medium" : ""}`}
 								>
 									{tick.label}
 								</text>
 							))}
 						</svg>
+
+						{/* Draw-to-create: hover ghost ("+" day cell) and drag span preview */}
+						{!readOnly && hoverCell && !createPreview && (
+							<div
+								className="pointer-events-none absolute flex items-center justify-center rounded-sm border border-muted-foreground/60 border-dashed text-muted-foreground"
+								style={{
+									left: dateToX(geom, hoverCell.date),
+									top: rowY(hoverCell.row) + 6,
+									width: dayWidth,
+									height: ROW_HEIGHT - 12,
+								}}
+							>
+								{dayWidth >= 16 && <PlusIcon className="size-3" />}
+							</div>
+						)}
+						{createPreview && (
+							<div
+								className="pointer-events-none absolute rounded-sm border border-primary border-dashed bg-primary/10"
+								style={{
+									left: dateToX(geom, createPreview.startDate),
+									top: rowY(createPreview.row) + 6,
+									width:
+										(diffDays(createPreview.startDate, createPreview.endDate) +
+											1) *
+										dayWidth,
+									height: ROW_HEIGHT - 12,
+								}}
+							/>
+						)}
 
 						{/* DOM overlay: Notes rendered on the bars (CONTEXT.md) */}
 						{lines.map((line, index) => {
@@ -503,26 +848,76 @@ export default function BoardView({
 					</div>
 				</div>
 
-				{!readOnly && createAt !== null && (
-					<InlineLineForm
-						key={createAt}
-						projectId={project.id}
-						top={HEADER_HEIGHT + createAt * ROW_HEIGHT}
-						beforeLine={lines[createAt - 1] ?? null}
-						afterLine={lines[createAt] ?? null}
-						onClose={() => setCreateAt(null)}
-					/>
-				)}
+				{/* Offscreen nudges: an arrow toward each bar outside the window,
+				 * pinned to the timeline's visible edges (the grid doesn't scroll
+				 * — the timeline column inside it does). The left offset clears
+				 * the 260px label column declared on the grid above. */}
+				{lines.map((line, index) => {
+					const side = viewport ? offscreenSide(geom, line, viewport) : null;
+					if (!side) return null;
+					return (
+						<div
+							key={`offscreen-${line.id}`}
+							className="pointer-events-none absolute z-10 text-muted-foreground"
+							style={{
+								top: rowY(index) + ROW_HEIGHT / 2 - 7,
+								...(side === "left" ? { left: 264 } : { right: 4 }),
+							}}
+						>
+							{side === "left" ? (
+								<CaretLeftIcon className="size-3.5" />
+							) : (
+								<CaretRightIcon className="size-3.5" />
+							)}
+						</div>
+					);
+				})}
 			</div>
 
-			{!readOnly && linesCollection && editingLine && (
-				<LineDialog
-					open={dialogOpen}
-					onOpenChange={setDialogOpen}
-					line={editingLine}
+			{!readOnly && linesCollection && barPopover && popoverLine && (
+				<BarPopover
+					key={barPopover.lineId}
+					line={popoverLine}
 					collection={linesCollection}
+					anchor={barPopover.anchor}
+					// Guarded: clicking bar B while bar A's popover is open also fires
+					// A's outside-press dismissal (same click) — that must not close B.
+					onClose={() =>
+						setBarPopover((prev) =>
+							prev?.lineId === popoverLine.id ? null : prev,
+						)
+					}
 				/>
 			)}
+		</div>
+	);
+}
+
+/** A row-shaped inline input for creating a Line — sits in the flow exactly
+ * where the new row will land, so the Board stays put. */
+function CreateLineRow({
+	onCommit,
+	onDone,
+}: {
+	onCommit: (text: string) => Promise<void>;
+	onDone: () => void;
+}) {
+	return (
+		<div
+			className="flex items-center gap-1 border-b px-1"
+			style={{ height: ROW_HEIGHT }}
+		>
+			{/* Spacers align the input with the Item column text */}
+			<span className="size-4 shrink-0" />
+			<InlineTextEdit
+				value=""
+				startActive
+				placeholder="New line item"
+				className="flex-1 text-sm"
+				onCommit={onCommit}
+				onDone={onDone}
+			/>
+			<span className="w-20 shrink-0" />
 		</div>
 	);
 }

@@ -33,7 +33,6 @@ export const projectsRouter = router({
 				input.id,
 				ctx.session.user.id,
 			);
-			// Editors may edit content (CONTEXT.md) — name, description, seed dates
 			const nextSeedStart = input.seedStart ?? access.project.seedStart;
 			const nextSeedEnd = input.seedEnd ?? access.project.seedEnd;
 			if (nextSeedStart > nextSeedEnd) {
@@ -73,7 +72,10 @@ export const projectsRouter = router({
 
 	byId: protectedProcedure
 		.input(z.object({ id: z.uuid() }))
-		.query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+
+      console.log("HERE", input.id, ctx.session.user.id)
+
 			const access = await loadProjectForUser(
 				ctx.db,
 				input.id,

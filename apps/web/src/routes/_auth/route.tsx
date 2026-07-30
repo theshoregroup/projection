@@ -103,7 +103,13 @@ function AuthLayout() {
 							<SidebarMenuButton
 								className="font-medium text-lg"
 								render={<Link to="/" preload={false} />}
+								size={"lg"}
 							>
+								<Avatar className="rounded-sm after:rounded-sm after:border-primary-foreground">
+									<AvatarFallback className="rounded-sm bg-primary text-primary-foreground">
+										<ProjectorScreenChartIcon />
+									</AvatarFallback>
+								</Avatar>
 								Projection
 							</SidebarMenuButton>
 						</SidebarMenuItem>

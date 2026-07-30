@@ -7,6 +7,7 @@ import {
 	DEFAULT_DAY_WIDTH,
 	dateToX,
 	HEADER_HEIGHT,
+	offscreenSide,
 	ROW_HEIGHT,
 	rowY,
 	ticksFor,
@@ -58,6 +59,90 @@ describe("barForLine", () => {
 		});
 		expect(bar.width).toBe(0);
 		expect(bar.x).toBe(9 * 24 + 12);
+	});
+});
+
+describe("offscreenSide", () => {
+	// The whole window is visible (no scroll): nothing is offscreen
+	const fullView = { startX: 0, endX: 31 * 24 };
+	// Scrolled to show days 5–20 only
+	const midView = { startX: 5 * 24, endX: 21 * 24 };
+
+	it("is null when the viewport covers the whole window", () => {
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-01", endDate: "2026-03-02", isMilestone: false },
+				fullView,
+			),
+		).toBeNull();
+	});
+	it("points left when the bar ends before the viewport", () => {
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-01", endDate: "2026-03-03", isMilestone: false },
+				midView,
+			),
+		).toBe("left");
+	});
+	it("points right when the bar starts after the viewport", () => {
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-25", endDate: "2026-03-28", isMilestone: false },
+				midView,
+			),
+		).toBe("right");
+	});
+	it("is null when any part of the bar is visible", () => {
+		// Overlaps the viewport's left edge
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-03", endDate: "2026-03-06", isMilestone: false },
+				midView,
+			),
+		).toBeNull();
+		// Overlaps the viewport's right edge
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-19", endDate: "2026-03-24", isMilestone: false },
+				midView,
+			),
+		).toBeNull();
+		// Fully inside the viewport
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-10", endDate: "2026-03-12", isMilestone: false },
+				midView,
+			),
+		).toBeNull();
+	});
+	it("treats a Milestone as a point on its day", () => {
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-02", endDate: "2026-03-02", isMilestone: true },
+				midView,
+			),
+		).toBe("left");
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-25", endDate: "2026-03-25", isMilestone: true },
+				midView,
+			),
+		).toBe("right");
+		expect(
+			offscreenSide(
+				g,
+				{ startDate: "2026-03-10", endDate: "2026-03-10", isMilestone: true },
+				midView,
+			),
+		).toBeNull();
 	});
 });
 

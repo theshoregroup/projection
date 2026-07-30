@@ -58,6 +58,24 @@ export function barForLine(
 	};
 }
 
+/** The visible X range of the Board's horizontal scroll viewport. */
+export interface Viewport {
+	startX: number;
+	endX: number;
+}
+
+/** The edge a bar sits beyond, when it lies entirely outside the viewport. */
+export function offscreenSide(
+	g: Geometry,
+	line: { startDate: IsoDate; endDate: IsoDate; isMilestone: boolean },
+	view: Viewport,
+): "left" | "right" | null {
+	const bar = barForLine(g, line);
+	if (bar.x + bar.width <= view.startX) return "left";
+	if (bar.x >= view.endX) return "right";
+	return null;
+}
+
 export type TickUnit = "day" | "week" | "month";
 
 /** Tick granularity follows zoom: days when wide, weeks in the middle, months when tight. */
