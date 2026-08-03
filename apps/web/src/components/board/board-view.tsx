@@ -6,13 +6,16 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { addDays, deriveWindow, diffDays } from "@projection/api/domain/dates";
 import { sortOrderBetween } from "@projection/api/domain/ordering";
+import { useIsMobile } from "@projection/ui/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import BarPopover from "@/components/board/bar-popover";
+import BoardSidePanel from "@/components/board/board-side-panel";
 import InlineTextEdit from "@/components/board/inline-text-edit";
 import ZoomBar from "@/components/board/zoom-bar";
+import { useBoardPanel, PANEL_MIN_WIDTH } from "@/hooks/use-board-panel";
 import { assigneeColor } from "@/lib/board-layout/colors";
 import {
 	barForLine,
@@ -139,6 +142,20 @@ export default function BoardView({
 	const scrollerRef = useRef<HTMLDivElement | null>(null);
 	/** The Timeline's visible X range — drives the offscreen nudges. */
 	const [viewport, setViewport] = useState<Viewport | null>(null);
+
+	const {
+		isOpen,
+		panelWidth,
+		assigneeWidth,
+		startPanelResize,
+		startRailOpen,
+		startAssigneeResize,
+		onPointerMove,
+		onPointerUp,
+		toggle,
+	} = useBoardPanel();
+	const isMobile = useIsMobile();
+	const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
 
 	const window = deriveWindow(lines, project);
 	const geom: Geometry = { start: window.start, end: window.end, dayWidth };
@@ -470,22 +487,53 @@ export default function BoardView({
 		? lines.find((line) => line.id === barPopover.lineId)
 		: undefined;
 
+	const panelDisplayOpen = isMobile ? mobilePanelOpen : isOpen;
+	const panelDisplayWidth = isMobile ? PANEL_MIN_WIDTH : panelWidth;
+
 	return (
 		<div className="flex flex-col gap-3">
-			{!readOnly && <ZoomBar dayWidth={dayWidth} onChange={setDayWidth} />}
+			{!readOnly && (
+				<ZoomBar
+					dayWidth={dayWidth}
+					onChange={setDayWidth}
+					isMobile={isMobile}
+					onOpenPanel={() => setMobilePanelOpen((prev) => !prev)}
+				/>
+			)}
 
 			<div
 				className="relative grid border-y"
-				style={{ gridTemplateColumns: "260px 1fr" }}
+				style={{
+					gridTemplateColumns: `${panelDisplayOpen ? panelDisplayWidth : 0}px 1fr`,
+					"--board-panel-width": panelDisplayOpen
+						? `${panelDisplayWidth}px`
+						: "0px",
+				} as React.CSSProperties}
 			>
 				{/* Left column: row labels */}
-				<div className="border-r">
+				<BoardSidePanel
+					isOpen={panelDisplayOpen}
+					width={panelDisplayWidth}
+					assigneeWidth={assigneeWidth}
+					allowPanelResize={!isMobile}
+					onStartResize={startPanelResize}
+					onStartRailOpen={startRailOpen}
+					onStartAssigneeResize={startAssigneeResize}
+					onPointerMove={onPointerMove}
+					onPointerUp={onPointerUp}
+					onToggle={toggle}
+				>
 					<div
-						className="flex items-end gap-2 border-b px-2 pb-2 text-muted-foreground text-xs"
+						className="flex items-end gap-1 border-b px-1 pb-2 text-muted-foreground text-xs"
 						style={{ height: HEADER_HEIGHT }}
 					>
 						<span className="flex-1">Item</span>
-						<span className="w-20">Assignee</span>
+						<span
+							className="shrink-0"
+							style={{ width: "var(--board-assignee-width)" }}
+						>
+							Assignee
+						</span>
 					</div>
 					<div ref={rowsRef}>
 						{lines.length === 0 ? (
@@ -531,7 +579,7 @@ export default function BoardView({
 										value={line.item}
 										startActive={line.id === editingItemId}
 										disabled={readOnly || !linesCollection}
-										className="flex-1 text-sm"
+										className="flex-1 min-w-0 text-sm"
 										onCommit={(text) => commitField(line, "item", text)}
 										onDone={
 											line.id === editingItemId
@@ -539,13 +587,18 @@ export default function BoardView({
 												: undefined
 										}
 									/>
-									<InlineTextEdit
-										value={line.assignee ?? ""}
-										disabled={readOnly || !linesCollection}
-										allowEmpty
-										className="w-20 shrink-0 text-muted-foreground text-xs"
-										onCommit={(text) => commitField(line, "assignee", text)}
-									/>
+									<div
+										className="flex h-full shrink-0 items-center"
+										style={{ width: "var(--board-assignee-width)" }}
+									>
+										<InlineTextEdit
+											value={line.assignee ?? ""}
+											disabled={readOnly || !linesCollection}
+											allowEmpty
+											className="h-full w-full text-muted-foreground text-xs"
+											onCommit={(text) => commitField(line, "assignee", text)}
+										/>
+									</div>
 									{!readOnly &&
 										index < lines.length - 1 &&
 										creatingAt === null && (
@@ -584,11 +637,11 @@ export default function BoardView({
 							<PlusIcon className="size-4" /> Add new line
 						</button>
 					)}
-				</div>
+				</BoardSidePanel>
 
 				{/* Right column: the timeline */}
 				<div
-					className="overflow-x-auto"
+					className="min-w-0 overflow-x-auto"
 					ref={scrollerRef}
 					onScroll={onTimelineScroll}
 				>
@@ -851,7 +904,7 @@ export default function BoardView({
 				{/* Offscreen nudges: an arrow toward each bar outside the window,
 				 * pinned to the timeline's visible edges (the grid doesn't scroll
 				 * — the timeline column inside it does). The left offset clears
-				 * the 260px label column declared on the grid above. */}
+				 * the resizable rows panel. */}
 				{lines.map((line, index) => {
 					const side = viewport ? offscreenSide(geom, line, viewport) : null;
 					if (!side) return null;
@@ -861,7 +914,9 @@ export default function BoardView({
 							className="pointer-events-none absolute z-10 text-muted-foreground"
 							style={{
 								top: rowY(index) + ROW_HEIGHT / 2 - 7,
-								...(side === "left" ? { left: 264 } : { right: 4 }),
+								...(side === "left"
+									? { left: "calc(var(--board-panel-width) + 4px)" }
+									: { right: 4 }),
 							}}
 						>
 							{side === "left" ? (
@@ -913,11 +968,14 @@ function CreateLineRow({
 				value=""
 				startActive
 				placeholder="New line item"
-				className="flex-1 text-sm"
+				className="flex-1 min-w-0 text-sm"
 				onCommit={onCommit}
 				onDone={onDone}
 			/>
-			<span className="w-20 shrink-0" />
+			<div
+				className="shrink-0"
+				style={{ width: "var(--board-assignee-width)" }}
+			/>
 		</div>
 	);
 }
