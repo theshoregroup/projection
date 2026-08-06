@@ -15,7 +15,7 @@ import BarPopover from "@/components/board/bar-popover";
 import BoardSidePanel from "@/components/board/board-side-panel";
 import InlineTextEdit from "@/components/board/inline-text-edit";
 import ZoomBar from "@/components/board/zoom-bar";
-import { useBoardPanel, PANEL_MIN_WIDTH } from "@/hooks/use-board-panel";
+import { PANEL_MIN_WIDTH, useBoardPanel } from "@/hooks/use-board-panel";
 import { assigneeColor } from "@/lib/board-layout/colors";
 import {
 	barForLine,
@@ -503,12 +503,14 @@ export default function BoardView({
 
 			<div
 				className="relative grid border-y"
-				style={{
-					gridTemplateColumns: `${panelDisplayOpen ? panelDisplayWidth : 0}px 1fr`,
-					"--board-panel-width": panelDisplayOpen
-						? `${panelDisplayWidth}px`
-						: "0px",
-				} as React.CSSProperties}
+				style={
+					{
+						gridTemplateColumns: `${panelDisplayOpen ? panelDisplayWidth : 0}px 1fr`,
+						"--board-panel-width": panelDisplayOpen
+							? `${panelDisplayWidth}px`
+							: "0px",
+					} as React.CSSProperties
+				}
 			>
 				{/* Left column: row labels */}
 				<BoardSidePanel
@@ -529,7 +531,7 @@ export default function BoardView({
 					>
 						<span className="flex-1">Item</span>
 						<span
-							className="shrink-0"
+							className="shrink-0 pl-1"
 							style={{ width: "var(--board-assignee-width)" }}
 						>
 							Assignee
@@ -579,7 +581,7 @@ export default function BoardView({
 										value={line.item}
 										startActive={line.id === editingItemId}
 										disabled={readOnly || !linesCollection}
-										className="flex-1 min-w-0 text-sm"
+										className="min-w-0 flex-1 text-sm"
 										onCommit={(text) => commitField(line, "item", text)}
 										onDone={
 											line.id === editingItemId
@@ -588,7 +590,7 @@ export default function BoardView({
 										}
 									/>
 									<div
-										className="flex h-full shrink-0 items-center"
+										className="flex h-full pl-1 shrink-0 items-center"
 										style={{ width: "var(--board-assignee-width)" }}
 									>
 										<InlineTextEdit
@@ -968,7 +970,7 @@ function CreateLineRow({
 				value=""
 				startActive
 				placeholder="New line item"
-				className="flex-1 min-w-0 text-sm"
+				className="min-w-0 flex-1 text-sm"
 				onCommit={onCommit}
 				onDone={onDone}
 			/>

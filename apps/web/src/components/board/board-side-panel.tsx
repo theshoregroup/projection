@@ -31,10 +31,12 @@ export default function BoardSidePanel({
 		<div
 			data-slot="board-side-panel"
 			className={cn("relative", isOpen ? "border-r" : "border-r-0")}
-			style={{
-				width: isOpen ? width : 0,
-				"--board-assignee-width": `${assigneeWidth}px`,
-			} as React.CSSProperties}
+			style={
+				{
+					width: isOpen ? width : 0,
+					"--board-assignee-width": `${assigneeWidth}px`,
+				} as React.CSSProperties
+			}
 		>
 			{isOpen ? (
 				<>
@@ -44,7 +46,7 @@ export default function BoardSidePanel({
 						aria-label="Resize assignee column"
 						tabIndex={0}
 						className={cn(
-							"absolute inset-y-0 z-10 w-1 cursor-col-resize hover:bg-border/80",
+							"absolute inset-y-0 z-10 w-0.5 cursor-col-resize bg-border/80",
 							"focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
 						)}
 						style={{ right: "calc(var(--board-assignee-width) + 4px)" }}
@@ -53,27 +55,27 @@ export default function BoardSidePanel({
 						onPointerUp={onPointerUp}
 						onPointerCancel={onPointerUp}
 					/>
-				{allowPanelResize && (
-					<div
-						role="separator"
-						aria-label="Resize rows panel"
-						tabIndex={0}
-						className={cn(
-							"absolute inset-y-0 right-0 z-20 w-1 cursor-ew-resize hover:bg-border/80",
-							"focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
-						)}
-						onPointerDown={onStartResize}
-						onPointerMove={onPointerMove}
-						onPointerUp={onPointerUp}
-						onPointerCancel={onPointerUp}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								onToggle();
-							}
-						}}
-					/>
-				)}
+					{allowPanelResize && (
+						<div
+							role="separator"
+							aria-label="Resize rows panel"
+							tabIndex={0}
+							className={cn(
+								"absolute inset-y-0 right-0 z-20 w-1 cursor-ew-resize hover:bg-border/80",
+								"focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+							)}
+							onPointerDown={onStartResize}
+							onPointerMove={onPointerMove}
+							onPointerUp={onPointerUp}
+							onPointerCancel={onPointerUp}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									onToggle();
+								}
+							}}
+						/>
+					)}
 				</>
 			) : (
 				<div
