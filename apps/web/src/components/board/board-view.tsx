@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import BarPopover from "@/components/board/bar-popover";
 import BoardSidePanel from "@/components/board/board-side-panel";
 import InlineTextEdit from "@/components/board/inline-text-edit";
+import ReorderDragPreview from "@/components/board/reorder-drag-preview";
 import ZoomBar from "@/components/board/zoom-bar";
 import { PANEL_MIN_WIDTH, useBoardPanel } from "@/hooks/use-board-panel";
 import { assigneeColor } from "@/lib/board-layout/colors";
@@ -33,6 +34,10 @@ import {
 	weekendSpans,
 	xToDate,
 } from "@/lib/board-layout/geometry";
+import {
+	computeReorderTargets,
+	insertionGap,
+} from "@/lib/board-layout/reorder";
 import type { getLinesCollection, LineRow } from "@/lib/collections";
 import { useTRPCClient } from "@/utils/trpc";
 
@@ -66,21 +71,6 @@ const DIAMOND_SIZE = 9;
 
 function diamondPath(cx: number, cy: number): string {
 	return `M ${cx} ${cy - DIAMOND_SIZE} L ${cx + DIAMOND_SIZE} ${cy} L ${cx} ${cy + DIAMOND_SIZE} L ${cx - DIAMOND_SIZE} ${cy} Z`;
-}
-
-/** Neighbours a dragged row would land between at a hovered row index. */
-export function computeReorderTargets(
-	lines: LineRow[],
-	lineId: string,
-	targetIndex: number,
-): { beforeId: string | null; afterId: string | null } {
-	const current = lines.findIndex((line) => line.id === lineId);
-	const rest = lines.filter((line) => line.id !== lineId);
-	const insertAt = targetIndex > current ? targetIndex + 1 : targetIndex;
-	return {
-		beforeId: rest[insertAt - 1]?.id ?? null,
-		afterId: rest[insertAt]?.id ?? null,
-	};
 }
 
 export default function BoardView({
@@ -123,6 +113,9 @@ export default function BoardView({
 	const [reorderHover, setReorderHover] = useState<{
 		lineId: string;
 		index: number;
+		/** Pointer position for the drag preview that follows the cursor. */
+		x: number;
+		y: number;
 	} | null>(null);
 
 	const dragRef = useRef<DragState | null>(null);
@@ -285,7 +278,12 @@ export default function BoardView({
 				Math.floor((event.clientY - rect.top) / ROW_HEIGHT),
 			),
 		);
-		setReorderHover({ lineId: reorderRef.current.lineId, index });
+		setReorderHover({
+			lineId: reorderRef.current.lineId,
+			index,
+			x: event.clientX,
+			y: event.clientY,
+		});
 	}
 
 	async function onReorderEnd() {
@@ -537,7 +535,7 @@ export default function BoardView({
 							Assignee
 						</span>
 					</div>
-					<div ref={rowsRef}>
+					<div ref={rowsRef} className="relative">
 						{lines.length === 0 ? (
 							<div className="px-3 py-4 text-muted-foreground text-sm">
 								{readOnly
@@ -556,21 +554,17 @@ export default function BoardView({
 						{lines.map((line, index) => (
 							<Fragment key={line.id}>
 								<div
-									className={`group relative flex items-center gap-1 border-b px-1 ${
-										reorderHover?.index === index &&
-										reorderHover.lineId !== line.id
-											? "bg-accent/50"
-											: ""
-									}`}
+									className="group relative flex items-center gap-1 border-b px-1"
 									style={{ height: ROW_HEIGHT }}
 								>
 									{!readOnly && (
 										<button
 											type="button"
-											className="cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+											className="cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
 											onPointerDown={(event) => startReorder(event, line.id)}
 											onPointerMove={onReorderMove}
 											onPointerUp={() => void onReorderEnd()}
+											onPointerCancel={() => void onReorderEnd()}
 											aria-label={`Reorder ${line.item}`}
 										>
 											<DotsSixVerticalIcon className="size-4" />
@@ -626,6 +620,23 @@ export default function BoardView({
 								)}
 							</Fragment>
 						))}
+						{/* Insertion point: the border the dragged Line would land on
+						 * (same gap the drop uses, so they can't disagree). */}
+						{reorderHover && (
+							<div
+								className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-primary"
+								style={{
+									top:
+										insertionGap(
+											lines,
+											reorderHover.lineId,
+											reorderHover.index,
+										) *
+											ROW_HEIGHT -
+										1,
+								}}
+							/>
+						)}
 					</div>
 					{!readOnly && creatingAt === null && (
 						<button
@@ -930,6 +941,17 @@ export default function BoardView({
 					);
 				})}
 			</div>
+
+			{/* Drag ghost following the cursor during a row reorder */}
+			{reorderHover && (
+				<ReorderDragPreview
+					item={
+						lines.find((line) => line.id === reorderHover.lineId)?.item ?? ""
+					}
+					x={reorderHover.x}
+					y={reorderHover.y}
+				/>
+			)}
 
 			{!readOnly && linesCollection && barPopover && popoverLine && (
 				<BarPopover
