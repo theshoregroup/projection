@@ -72,9 +72,8 @@ export const projectsRouter = router({
 
 	byId: protectedProcedure
 		.input(z.object({ id: z.uuid() }))
-    .query(async ({ ctx, input }) => {
-
-      console.log("HERE", input.id, ctx.session.user.id)
+		.query(async ({ ctx, input }) => {
+			console.log("HERE", input.id, ctx.session.user.id);
 
 			const access = await loadProjectForUser(
 				ctx.db,

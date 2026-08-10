@@ -86,7 +86,9 @@ export function useBoardPanel() {
 
 		setIsOpen(storedOpen);
 		setPanelWidth(storedOpen ? clampedWidth : 0);
-		setLastOpenWidth(storedOpen && storedWidth > 0 ? storedWidth : PANEL_DEFAULT_WIDTH);
+		setLastOpenWidth(
+			storedOpen && storedWidth > 0 ? storedWidth : PANEL_DEFAULT_WIDTH,
+		);
 		setAssigneeWidth(storedAssignee);
 		setMaxPanelWidth(Math.floor(window.innerWidth * 0.5));
 	}, []);
@@ -104,10 +106,12 @@ export function useBoardPanel() {
 		[maxPanelWidth],
 	);
 
-	const maxAssigneeWidth = panelWidth - ITEM_MIN_WIDTH - INNER_HANDLE_WIDTH - PANEL_CONTENT_OVERHEAD;
+	const maxAssigneeWidth =
+		panelWidth - ITEM_MIN_WIDTH - INNER_HANDLE_WIDTH - PANEL_CONTENT_OVERHEAD;
 
 	const clampAssignee = useCallback(
-		(aw: number) => Math.min(Math.max(aw, ASSIGNEE_MIN_WIDTH), maxAssigneeWidth),
+		(aw: number) =>
+			Math.min(Math.max(aw, ASSIGNEE_MIN_WIDTH), maxAssigneeWidth),
 		[maxAssigneeWidth],
 	);
 
@@ -143,47 +147,38 @@ export function useBoardPanel() {
 		moved: boolean;
 	} | null>(null);
 
-	const startPanelResize = useCallback(
-		(event: React.PointerEvent) => {
-			event.currentTarget.setPointerCapture(event.pointerId);
-			dragRef.current = {
-				kind: "panel",
-				startX: event.clientX,
-				startPanelWidth: panelWidthRef.current,
-				startAssigneeWidth: assigneeWidthRef.current,
-				moved: false,
-			};
-		},
-		[],
-	);
+	const startPanelResize = useCallback((event: React.PointerEvent) => {
+		event.currentTarget.setPointerCapture(event.pointerId);
+		dragRef.current = {
+			kind: "panel",
+			startX: event.clientX,
+			startPanelWidth: panelWidthRef.current,
+			startAssigneeWidth: assigneeWidthRef.current,
+			moved: false,
+		};
+	}, []);
 
-	const startRailOpen = useCallback(
-		(event: React.PointerEvent) => {
-			event.currentTarget.setPointerCapture(event.pointerId);
-			dragRef.current = {
-				kind: "rail",
-				startX: event.clientX,
-				startPanelWidth: 0,
-				startAssigneeWidth: assigneeWidthRef.current,
-				moved: false,
-			};
-		},
-		[],
-	);
+	const startRailOpen = useCallback((event: React.PointerEvent) => {
+		event.currentTarget.setPointerCapture(event.pointerId);
+		dragRef.current = {
+			kind: "rail",
+			startX: event.clientX,
+			startPanelWidth: 0,
+			startAssigneeWidth: assigneeWidthRef.current,
+			moved: false,
+		};
+	}, []);
 
-	const startAssigneeResize = useCallback(
-		(event: React.PointerEvent) => {
-			event.currentTarget.setPointerCapture(event.pointerId);
-			dragRef.current = {
-				kind: "assignee",
-				startX: event.clientX,
-				startPanelWidth: panelWidthRef.current,
-				startAssigneeWidth: assigneeWidthRef.current,
-				moved: false,
-			};
-		},
-		[],
-	);
+	const startAssigneeResize = useCallback((event: React.PointerEvent) => {
+		event.currentTarget.setPointerCapture(event.pointerId);
+		dragRef.current = {
+			kind: "assignee",
+			startX: event.clientX,
+			startPanelWidth: panelWidthRef.current,
+			startAssigneeWidth: assigneeWidthRef.current,
+			moved: false,
+		};
+	}, []);
 
 	const onPointerMove = useCallback(
 		(event: React.PointerEvent) => {
@@ -264,9 +259,7 @@ export function useBoardPanel() {
 				setPanelWidth(0);
 				return false;
 			}
-			const next = clampPanel(
-				lastOpenWidthRef.current || PANEL_DEFAULT_WIDTH,
-			);
+			const next = clampPanel(lastOpenWidthRef.current || PANEL_DEFAULT_WIDTH);
 			setPanelWidth(next);
 			setLastOpenWidth(next);
 			return true;

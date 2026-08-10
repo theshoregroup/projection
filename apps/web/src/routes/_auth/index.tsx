@@ -101,7 +101,7 @@ function Dashboard() {
 					projects={mine ?? []}
 					empty="No projects yet — create your first one."
 				/>
-      </div>
+			</div>
 
 			<div className="space-y-4">
 				<h2 className="font-semibold text-xl">Shared with me</h2>
@@ -112,6 +112,4 @@ function Dashboard() {
 			</div>
 		</div>
 	);
-
-
 }

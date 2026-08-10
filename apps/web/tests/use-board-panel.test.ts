@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
 	ASSIGNEE_DEFAULT_WIDTH,
 	ASSIGNEE_MIN_WIDTH,
@@ -10,7 +10,6 @@ import {
 	PANEL_MIN_WIDTH,
 	useBoardPanel,
 } from "@/hooks/use-board-panel";
-import type React from "react";
 
 class ResizeObserverStub {
 	observe() {}
@@ -121,12 +120,16 @@ describe("useBoardPanel", () => {
 			JSON.stringify(100),
 		);
 		const { result: tooSmall } = renderHook(() => useBoardPanel());
-		await waitFor(() => expect(tooSmall.current.panelWidth).toBe(PANEL_MIN_WIDTH));
+		await waitFor(() =>
+			expect(tooSmall.current.panelWidth).toBe(PANEL_MIN_WIDTH),
+		);
 	});
 
 	it("dragging the outer handle changes the panel width", async () => {
 		const { result } = renderHook(() => useBoardPanel());
-		await waitFor(() => expect(result.current.panelWidth).toBe(PANEL_DEFAULT_WIDTH));
+		await waitFor(() =>
+			expect(result.current.panelWidth).toBe(PANEL_DEFAULT_WIDTH),
+		);
 
 		act(() => result.current.startPanelResize(fakePointerEvent(100)));
 		act(() => result.current.onPointerMove(fakePointerEvent(150)));
@@ -138,7 +141,9 @@ describe("useBoardPanel", () => {
 
 	it("dragging the outer handle past the collapse snap closes the panel", async () => {
 		const { result } = renderHook(() => useBoardPanel());
-		await waitFor(() => expect(result.current.panelWidth).toBe(PANEL_DEFAULT_WIDTH));
+		await waitFor(() =>
+			expect(result.current.panelWidth).toBe(PANEL_DEFAULT_WIDTH),
+		);
 
 		// A small drag stays open.
 		act(() => result.current.startPanelResize(fakePointerEvent(0)));
@@ -148,7 +153,11 @@ describe("useBoardPanel", () => {
 
 		// Dragging below the collapse snap closes it.
 		act(() => result.current.startPanelResize(fakePointerEvent(0)));
-		act(() => result.current.onPointerMove(fakePointerEvent(-(PANEL_DEFAULT_WIDTH - 40))));
+		act(() =>
+			result.current.onPointerMove(
+				fakePointerEvent(-(PANEL_DEFAULT_WIDTH - 40)),
+			),
+		);
 		act(() => result.current.onPointerUp());
 		expect(result.current.isOpen).toBe(false);
 		expect(result.current.panelWidth).toBe(0);
