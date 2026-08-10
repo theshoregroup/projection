@@ -27,6 +27,8 @@ const line: LineRow = {
 	note: "Order early",
 	percentComplete: 0,
 	isMilestone: false,
+	isGroup: false,
+	groupId: null,
 	sortOrder: 1024,
 };
 

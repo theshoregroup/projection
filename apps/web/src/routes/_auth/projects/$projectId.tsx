@@ -6,8 +6,9 @@ import { Skeleton } from "@projection/ui/components/skeleton";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import BoardView from "@/components/board/board-view";
+import SelectionActions from "@/components/board/selection-actions";
 import SharePanel from "@/components/board/share-panel";
 import { NotFoundComponent } from "@/components/ui/not-found";
 import { getLinesCollection } from "@/lib/collections";
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/_auth/projects/$projectId")({
 
 function ShareButton() {
 	return (
-    <Button size="sm">
+		<Button size="sm">
 			<ShareFatIcon className="size-4" /> Share
 		</Button>
 	);
@@ -79,6 +80,23 @@ function ProjectPage() {
 		[linesCollection],
 	);
 
+	// Row selection for the bulk actions (Copy / Delete / Group) in the
+	// header. renameItemId asks the Board to open a just-created Group's
+	// title for naming.
+	const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
+	const [renameItemId, setRenameItemId] = useState<string | null>(null);
+
+	function toggleSelected(lineId: string, checked: boolean) {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (checked) next.add(lineId);
+			else next.delete(lineId);
+			return next;
+		});
+	}
+
 	if (projectQuery.isPending || linesLoading) {
 		return <div className="p-6 text-muted-foreground">Loading board…</div>;
 	}
@@ -102,13 +120,24 @@ function ProjectPage() {
 						</p>
 					) : null}
 				</div>
-				<SharePanel project={project} role={role} trigger={<ShareButton />} />
+				<div className="flex items-center gap-2">
+					<SelectionActions
+						projectId={project.id}
+						selectedIds={selectedIds}
+						onClear={() => setSelectedIds(new Set())}
+						onGrouped={setRenameItemId}
+					/>
+					<SharePanel project={project} role={role} trigger={<ShareButton />} />
+				</div>
 			</div>
 
 			<BoardView
 				project={project}
 				lines={lineRows ?? []}
 				linesCollection={linesCollection}
+				selectedIds={selectedIds}
+				onToggleSelected={toggleSelected}
+				renameItemId={renameItemId}
 			/>
 		</div>
 	);

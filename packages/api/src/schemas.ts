@@ -74,6 +74,18 @@ export const inviteSchema = z.object({
 export const reorderSchema = z.object({
 	projectId: z.string().min(1),
 	lineId: z.string().min(1),
+	/** New parent Group (null = top level); before/after are siblings within it. */
+	groupId: z.string().min(1).nullable(),
 	beforeLineId: z.string().min(1).nullable(),
 	afterLineId: z.string().min(1).nullable(),
+});
+
+export const groupSchema = z.object({
+	projectId: z.string().min(1),
+	lineIds: z.array(z.string().min(1)).min(1),
+});
+
+export const lineIdsSchema = z.object({
+	projectId: z.string().min(1),
+	ids: z.array(z.string().min(1)).min(1),
 });

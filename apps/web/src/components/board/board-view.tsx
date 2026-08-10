@@ -3,9 +3,12 @@ import {
 	CaretRightIcon,
 	DotsSixVerticalIcon,
 	PlusIcon,
+	RowsIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { addDays, deriveWindow, diffDays } from "@projection/api/domain/dates";
+import { buildRows } from "@projection/api/domain/groups";
 import { sortOrderBetween } from "@projection/api/domain/ordering";
+import { Checkbox } from "@projection/ui/components/checkbox";
 import { useIsMobile } from "@projection/ui/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -35,8 +38,10 @@ import {
 	xToDate,
 } from "@/lib/board-layout/geometry";
 import {
-	computeReorderTargets,
+	type DropTarget,
 	insertionGap,
+	NEW_ROW_ID,
+	resolveDropTarget,
 } from "@/lib/board-layout/reorder";
 import type { getLinesCollection, LineRow } from "@/lib/collections";
 import { useTRPCClient } from "@/utils/trpc";
@@ -49,6 +54,11 @@ interface BoardViewProps {
 	/** Read-only render for the public Share Link — no controls, no mutations. */
 	readOnly?: boolean;
 	linesCollection?: LinesCollection;
+	/** Checked rows (owned by the page — the bulk actions live in its header). */
+	selectedIds?: ReadonlySet<string>;
+	onToggleSelected?: (lineId: string, checked: boolean) => void;
+	/** A just-created row (e.g. a new Group) whose Item cell should open. */
+	renameItemId?: string | null;
 }
 
 type DragMode = "move" | "resize-start" | "resize-end";
@@ -68,6 +78,11 @@ interface DragState {
 const BAR_INSET = 1;
 const BAR_RADIUS = 4;
 const DIAMOND_SIZE = 9;
+/** Indent per nesting depth for Group children (CONTEXT.md — Group). */
+const INDENT_PX = 16;
+/** X offset of the Item text inside a row: padding + checkbox + handle +
+ * gaps. Drives the drag depth hint (horizontal pointer → nesting level). */
+const ROW_BASE_X = 44;
 
 function diamondPath(cx: number, cy: number): string {
 	return `M ${cx} ${cy - DIAMOND_SIZE} L ${cx + DIAMOND_SIZE} ${cy} L ${cx} ${cy + DIAMOND_SIZE} L ${cx - DIAMOND_SIZE} ${cy} Z`;
@@ -78,6 +93,9 @@ export default function BoardView({
 	lines,
 	readOnly = false,
 	linesCollection,
+	selectedIds,
+	onToggleSelected,
+	renameItemId,
 }: BoardViewProps) {
 	const trpcClient = useTRPCClient();
 	const queryClient = useQueryClient();
@@ -113,6 +131,9 @@ export default function BoardView({
 	const [reorderHover, setReorderHover] = useState<{
 		lineId: string;
 		index: number;
+		/** The insertion gap (display coordinates) and resolved drop target. */
+		gap: number;
+		target: DropTarget | null;
 		/** Pointer position for the drag preview that follows the cursor. */
 		x: number;
 		y: number;
@@ -150,14 +171,21 @@ export default function BoardView({
 	const isMobile = useIsMobile();
 	const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
 
+	// Visible rows: Groups flatten depth-first with siblings in sortOrder —
+	// every Line is exactly one row, so row indexes stay aligned everywhere.
+	const rows = buildRows(lines);
+	const rowLines = rows.map((row) => row.line);
+	// The selection checkbox column only exists on editable boards.
+	const hasSelection = !readOnly && onToggleSelected !== undefined;
+
 	const window = deriveWindow(lines, project);
 	const geom: Geometry = { start: window.start, end: window.end, dayWidth };
 	const width = boardWidth(geom);
-	const height = boardHeight(lines.length);
+	const height = boardHeight(rows.length);
 	// Editable boards extend one row below the last Line: the draw-to-create
 	// band for a new Line (aligns with the "Add new line" footer row). With no
 	// Lines the phantom row from boardHeight already *is* that band.
-	const svgHeight = height + (readOnly || lines.length === 0 ? 0 : ROW_HEIGHT);
+	const svgHeight = height + (readOnly || rows.length === 0 ? 0 : ROW_HEIGHT);
 	const ticks = ticksFor(geom);
 	const weekends = weekendSpans(geom);
 
@@ -274,13 +302,23 @@ export default function BoardView({
 		const index = Math.max(
 			0,
 			Math.min(
-				lines.length - 1,
+				rows.length - 1,
 				Math.floor((event.clientY - rect.top) / ROW_HEIGHT),
 			),
 		);
+		const lineId = reorderRef.current.lineId;
+		const gap = insertionGap(rowLines, lineId, index);
+		// Horizontal position picks the nesting level: drag right to move into
+		// a Group, left to move out (Reminders-style).
+		const depthHint = Math.max(
+			0,
+			Math.round((event.clientX - rect.left - ROW_BASE_X) / INDENT_PX),
+		);
 		setReorderHover({
-			lineId: reorderRef.current.lineId,
+			lineId,
 			index,
+			gap,
+			target: resolveDropTarget(rows, lineId, gap, depthHint),
 			x: event.clientX,
 			y: event.clientY,
 		});
@@ -288,29 +326,31 @@ export default function BoardView({
 
 	async function onReorderEnd() {
 		const reorder = reorderRef.current;
+		const target = reorderHover?.target ?? null;
 		reorderRef.current = null;
 		setReorderHover(null);
-		if (!reorder || !linesCollection) return;
-		const hoverIndex =
-			reorderHover?.index ?? lines.findIndex((l) => l.id === reorder.lineId);
-		const targets = computeReorderTargets(lines, reorder.lineId, hoverIndex);
-		const before = targets.beforeId
-			? (lines.find((l) => l.id === targets.beforeId)?.sortOrder ?? null)
+		// A null target means the only resolution was a Group into its own
+		// subtree — the drop is a no-op.
+		if (!reorder || !linesCollection || target === null) return;
+		const before = target.beforeId
+			? (lines.find((l) => l.id === target.beforeId)?.sortOrder ?? null)
 			: null;
-		const after = targets.afterId
-			? (lines.find((l) => l.id === targets.afterId)?.sortOrder ?? null)
+		const after = target.afterId
+			? (lines.find((l) => l.id === target.afterId)?.sortOrder ?? null)
 			: null;
 		// Optimistic local order; persisted via the reorder endpoint (the
-		// collection's update handler deliberately ignores sortOrder changes)
+		// collection's update handler deliberately ignores sortOrder/groupId)
 		linesCollection.update(reorder.lineId, (draft) => {
 			draft.sortOrder = sortOrderBetween(before, after);
+			draft.groupId = target.groupId;
 		});
 		try {
 			await trpcClient.lines.reorder.mutate({
 				projectId: project.id,
 				lineId: reorder.lineId,
-				beforeLineId: targets.beforeId,
-				afterLineId: targets.afterId,
+				groupId: target.groupId,
+				beforeLineId: target.beforeId,
+				afterLineId: target.afterId,
 			});
 			await queryClient.invalidateQueries({
 				queryKey: ["collection", "lines", project.id],
@@ -340,12 +380,32 @@ export default function BoardView({
 		}
 	}
 
+	/** Where a row created at visible `index` lands: it inherits the Group of
+	 * the row above (a Group header above means "first child of that Group"). */
+	function createTarget(index: number): DropTarget {
+		const above = rows[index - 1] ?? null;
+		const hint = above
+			? above.line.isGroup
+				? above.depth + 1
+				: above.depth
+			: 0;
+		return (
+			resolveDropTarget(rows, NEW_ROW_ID, index, hint) ?? {
+				groupId: null,
+				beforeId: null,
+				afterId: null,
+				depth: 0,
+			}
+		);
+	}
+
 	async function createLine(
 		item: string,
 		index: number,
 		dates?: { startDate: string; endDate: string; isMilestone?: boolean },
 	) {
 		if (!linesCollection) return;
+		const target = createTarget(index);
 		try {
 			const created = await trpcClient.lines.create.mutate({
 				projectId: project.id,
@@ -355,8 +415,9 @@ export default function BoardView({
 				startDate: dates?.startDate ?? project.seedStart,
 				endDate: dates?.endDate ?? project.seedStart,
 				isMilestone: dates?.isMilestone ?? false,
-				beforeLineId: lines[index - 1]?.id ?? null,
-				afterLineId: lines[index]?.id ?? null,
+				groupId: target.groupId,
+				beforeLineId: target.beforeId,
+				afterLineId: target.afterId,
 			});
 			// The lines collection syncs off this query key (see lib/collections)
 			await queryClient.invalidateQueries({
@@ -392,7 +453,7 @@ export default function BoardView({
 	}
 
 	/** Date + row under a Timeline pointer (x clamped to the window). Row
-	 * lines.length = the empty bottom band below the last Line — the only
+	 * rows.length = the empty bottom band below the last row — the only
 	 * draw-to-create target. Rows that already have a Line are "occupied". */
 	function backgroundPoint(event: React.PointerEvent): {
 		date: string;
@@ -406,13 +467,13 @@ export default function BoardView({
 		const inHeader = y < HEADER_HEIGHT;
 		const row = Math.max(
 			0,
-			Math.min(lines.length, Math.floor((y - HEADER_HEIGHT) / ROW_HEIGHT)),
+			Math.min(rows.length, Math.floor((y - HEADER_HEIGHT) / ROW_HEIGHT)),
 		);
 		return {
 			date: xToDate(geom, x),
 			row,
 			inHeader,
-			occupied: !inHeader && row < lines.length,
+			occupied: !inHeader && row < rows.length,
 		};
 	}
 
@@ -481,6 +542,16 @@ export default function BoardView({
 
 	// --- Render ---------------------------------------------------------------
 
+	// A newly created Group opens its Item cell for naming (same pattern as
+	// draw-to-create's editingItemId).
+	const lastRenameRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (renameItemId && renameItemId !== lastRenameRef.current) {
+			lastRenameRef.current = renameItemId;
+			setEditingItemId(renameItemId);
+		}
+	}, [renameItemId]);
+
 	const popoverLine = barPopover
 		? lines.find((line) => line.id === barPopover.lineId)
 		: undefined;
@@ -536,27 +607,40 @@ export default function BoardView({
 						</span>
 					</div>
 					<div ref={rowsRef} className="relative">
-						{lines.length === 0 ? (
+						{rows.length === 0 ? (
 							<div className="px-3 py-4 text-muted-foreground text-sm">
 								{readOnly
 									? "This project has no lines yet."
 									: "No lines yet — add your first one."}
 							</div>
 						) : null}
-						{lines.length === 0 && creatingAt === 0 && (
+						{rows.length === 0 && creatingAt === 0 && (
 							<CreateLineRow
+								depth={0}
 								onCommit={async (text) => {
 									await createLine(text, 0);
 								}}
 								onDone={() => setCreatingAt(null)}
 							/>
 						)}
-						{lines.map((line, index) => (
+						{rows.map(({ line, depth }, index) => (
 							<Fragment key={line.id}>
 								<div
 									className="group relative flex items-center gap-1 border-b px-1"
-									style={{ height: ROW_HEIGHT }}
+									style={{
+										height: ROW_HEIGHT,
+										paddingLeft: 4 + depth * INDENT_PX,
+									}}
 								>
+									{hasSelection && (
+										<Checkbox
+											checked={selectedIds?.has(line.id) ?? false}
+											onCheckedChange={(checked) =>
+												onToggleSelected(line.id, checked === true)
+											}
+											aria-label={`Select ${line.item}`}
+										/>
+									)}
 									{!readOnly && (
 										<button
 											type="button"
@@ -570,12 +654,15 @@ export default function BoardView({
 											<DotsSixVerticalIcon className="size-4" />
 										</button>
 									)}
+									{line.isGroup && (
+										<RowsIcon className="size-4 shrink-0 text-muted-foreground" />
+									)}
 									<InlineTextEdit
 										key={`${line.id}-${line.id === editingItemId}`}
 										value={line.item}
 										startActive={line.id === editingItemId}
 										disabled={readOnly || !linesCollection}
-										className="min-w-0 flex-1 text-sm"
+										className={`min-w-0 flex-1 text-sm ${line.isGroup ? "font-medium" : ""}`}
 										onCommit={(text) => commitField(line, "item", text)}
 										onDone={
 											line.id === editingItemId
@@ -584,7 +671,7 @@ export default function BoardView({
 										}
 									/>
 									<div
-										className="flex h-full pl-1 shrink-0 items-center"
+										className="flex h-full shrink-0 items-center pl-1"
 										style={{ width: "var(--board-assignee-width)" }}
 									>
 										<InlineTextEdit
@@ -596,7 +683,7 @@ export default function BoardView({
 										/>
 									</div>
 									{!readOnly &&
-										index < lines.length - 1 &&
+										index < rows.length - 1 &&
 										creatingAt === null && (
 											<div className="pointer-events-none absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
 												<button
@@ -612,6 +699,7 @@ export default function BoardView({
 								</div>
 								{creatingAt === index + 1 && (
 									<CreateLineRow
+										depth={createTarget(index + 1).depth}
 										onCommit={async (text) => {
 											await createLine(text, index + 1);
 										}}
@@ -621,19 +709,20 @@ export default function BoardView({
 							</Fragment>
 						))}
 						{/* Insertion point: the border the dragged Line would land on
-						 * (same gap the drop uses, so they can't disagree). */}
+						 * (same gap the drop uses, so they can't disagree), inset to
+						 * the resolved depth. A null target = no-op drop (a Group into
+						 * its own subtree), shown dimmed. */}
 						{reorderHover && (
 							<div
-								className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-primary"
+								className={`pointer-events-none absolute inset-x-0 z-10 h-0.5 ${
+									reorderHover.target === null
+										? "bg-muted-foreground/40"
+										: "bg-primary"
+								}`}
 								style={{
-									top:
-										insertionGap(
-											lines,
-											reorderHover.lineId,
-											reorderHover.index,
-										) *
-											ROW_HEIGHT -
-										1,
+									top: reorderHover.gap * ROW_HEIGHT - 1,
+									left:
+										ROW_BASE_X + (reorderHover.target?.depth ?? 0) * INDENT_PX,
 								}}
 							/>
 						)}
@@ -642,10 +731,10 @@ export default function BoardView({
 						<button
 							type="button"
 							className={`flex w-full items-center gap-2 px-3 text-left text-muted-foreground text-sm hover:bg-accent/50 hover:text-foreground ${
-								lines.length === 0 ? "border-t" : ""
+								rows.length === 0 ? "border-t" : ""
 							}`}
 							style={{ height: ROW_HEIGHT }}
-							onClick={() => setCreatingAt(lines.length)}
+							onClick={() => setCreatingAt(rows.length)}
 						>
 							<PlusIcon className="size-4" /> Add new line
 						</button>
@@ -724,7 +813,7 @@ export default function BoardView({
 							))}
 
 							{/* Row separators */}
-							{lines.map((line, index) => (
+							{rows.map(({ line }, index) => (
 								<line
 									key={line.id}
 									x1={0}
@@ -738,7 +827,7 @@ export default function BoardView({
 							))}
 
 							{/* Bars and milestone diamonds */}
-							{lines.map((line, index) => {
+							{rows.map(({ line }, index) => {
 								const effective =
 									preview?.lineId === line.id
 										? {
@@ -750,7 +839,38 @@ export default function BoardView({
 								const bar = barForLine(geom, effective);
 								const color = assigneeColor(line.assignee);
 								const cy = rowY(index) + ROW_HEIGHT / 2;
-								const tooltip = `${line.item}${line.assignee ? ` — ${line.assignee}` : ""} · ${effective.startDate} → ${effective.endDate}${line.isMilestone ? "" : ` · ${line.percentComplete}%`}`;
+								const tooltip = line.isGroup
+									? `${line.item}${line.assignee ? ` — ${line.assignee}` : ""} · ${effective.startDate} → ${effective.endDate}`
+									: `${line.item}${line.assignee ? ` — ${line.assignee}` : ""} · ${effective.startDate} → ${effective.endDate}${line.isMilestone ? "" : ` · ${line.percentComplete}%`}`;
+
+								// A Group's bar is automatic (derived from its Lines on
+								// the server): a summary bar with angled end caps, no drag
+								// handles, no popover.
+								if (line.isGroup) {
+									const capTop = cy - 3;
+									return (
+										<g key={line.id}>
+											<title>{tooltip}</title>
+											<rect
+												x={bar.x + BAR_INSET}
+												y={capTop}
+												width={Math.max(bar.width - BAR_INSET * 2, 2)}
+												height={6}
+												rx={1.5}
+												fill={color}
+												fillOpacity={0.9}
+											/>
+											<path
+												d={`M ${bar.x + BAR_INSET} ${capTop + 6} L ${bar.x + BAR_INSET + 7} ${capTop + 6} L ${bar.x + BAR_INSET} ${capTop + 12} Z`}
+												fill={color}
+											/>
+											<path
+												d={`M ${bar.x + bar.width - BAR_INSET} ${capTop + 6} L ${bar.x + bar.width - BAR_INSET - 7} ${capTop + 6} L ${bar.x + bar.width - BAR_INSET} ${capTop + 12} Z`}
+												fill={color}
+											/>
+										</g>
+									);
+								}
 
 								if (bar.isMilestone) {
 									return (
@@ -874,7 +994,7 @@ export default function BoardView({
 						)}
 
 						{/* DOM overlay: Notes rendered on the bars (CONTEXT.md) */}
-						{lines.map((line, index) => {
+						{rows.map(({ line }, index) => {
 							if (!line.note) return null;
 							const effective =
 								preview?.lineId === line.id
@@ -918,7 +1038,7 @@ export default function BoardView({
 				 * pinned to the timeline's visible edges (the grid doesn't scroll
 				 * — the timeline column inside it does). The left offset clears
 				 * the resizable rows panel. */}
-				{lines.map((line, index) => {
+				{rows.map(({ line }, index) => {
 					const side = viewport ? offscreenSide(geom, line, viewport) : null;
 					if (!side) return null;
 					return (
@@ -953,21 +1073,25 @@ export default function BoardView({
 				/>
 			)}
 
-			{!readOnly && linesCollection && barPopover && popoverLine && (
-				<BarPopover
-					key={barPopover.lineId}
-					line={popoverLine}
-					collection={linesCollection}
-					anchor={barPopover.anchor}
-					// Guarded: clicking bar B while bar A's popover is open also fires
-					// A's outside-press dismissal (same click) — that must not close B.
-					onClose={() =>
-						setBarPopover((prev) =>
-							prev?.lineId === popoverLine.id ? null : prev,
-						)
-					}
-				/>
-			)}
+			{!readOnly &&
+				linesCollection &&
+				barPopover &&
+				popoverLine &&
+				!popoverLine.isGroup && (
+					<BarPopover
+						key={barPopover.lineId}
+						line={popoverLine}
+						collection={linesCollection}
+						anchor={barPopover.anchor}
+						// Guarded: clicking bar B while bar A's popover is open also fires
+						// A's outside-press dismissal (same click) — that must not close B.
+						onClose={() =>
+							setBarPopover((prev) =>
+								prev?.lineId === popoverLine.id ? null : prev,
+							)
+						}
+					/>
+				)}
 		</div>
 	);
 }
@@ -975,19 +1099,22 @@ export default function BoardView({
 /** A row-shaped inline input for creating a Line — sits in the flow exactly
  * where the new row will land, so the Board stays put. */
 function CreateLineRow({
+	depth,
 	onCommit,
 	onDone,
 }: {
+	depth: number;
 	onCommit: (text: string) => Promise<void>;
 	onDone: () => void;
 }) {
 	return (
 		<div
 			className="flex items-center gap-1 border-b px-1"
-			style={{ height: ROW_HEIGHT }}
+			style={{ height: ROW_HEIGHT, paddingLeft: 4 + depth * INDENT_PX }}
 		>
-			{/* Spacers align the input with the Item column text */}
-			<span className="size-4 shrink-0" />
+			{/* Spacer aligns the input with the Item column text (checkbox +
+			 * drag handle widths) */}
+			<span className="w-9 shrink-0" />
 			<InlineTextEdit
 				value=""
 				startActive

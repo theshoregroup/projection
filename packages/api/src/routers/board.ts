@@ -2,6 +2,7 @@ import { line } from "@projection/db/schema/app";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { deriveWindow } from "../domain/dates";
+import { applyDerivedGroupDates } from "../domain/groups";
 import { protectedProcedure, router } from "../index";
 import { loadProjectForUser } from "../lib/access";
 
@@ -15,11 +16,13 @@ export const boardRouter = router({
 				input.projectId,
 				ctx.session.user.id,
 			);
-			const lines = await ctx.db
-				.select()
-				.from(line)
-				.where(eq(line.projectId, input.projectId))
-				.orderBy(asc(line.sortOrder));
+			const lines = applyDerivedGroupDates(
+				await ctx.db
+					.select()
+					.from(line)
+					.where(eq(line.projectId, input.projectId))
+					.orderBy(asc(line.sortOrder)),
+			);
 			return {
 				project: access.project,
 				lines,

@@ -30,6 +30,10 @@ _Avoid_: project dates, date range
 The timeline view of a Project: one row per Line, bars spanning Start to End inside the Timeline Window, weekends shaded, bars colored by Assignee.
 _Avoid_: kanban, chart
 
+**Group**:
+A Line that contains other Lines (which may themselves be Groups — Groups nest). It has the same required Item and optional Assignee as any Line, but its Start and End are automatic: the earliest contained Start to the latest contained End, derived on read. Its bar is a summary bar, never a Milestone, and carries no % Complete. Deleting a Group deletes everything inside it; a Group with nothing in it is kept and keeps its last dates. Checked rows on the Board can be grouped, copied (duplicated below), or deleted in bulk.
+_Avoid_: summary task, phase, parent task
+
 ### Access
 
 **Owner**:

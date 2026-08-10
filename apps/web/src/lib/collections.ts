@@ -117,15 +117,18 @@ export function getLinesCollection(
 							note: row.note ?? undefined,
 							percentComplete: row.percentComplete,
 							isMilestone: row.isMilestone,
+							groupId: row.groupId ?? undefined,
 						});
 					}
 				},
 				onUpdate: async ({ transaction }) => {
 					for (const mutation of transaction.mutations) {
-						// sortOrder changes persist via the reorder endpoint (direct
-						// mutation + invalidation); everything else rides this one.
+						// sortOrder and groupId changes persist via the reorder endpoint
+						// (direct mutation + invalidation); everything else rides this one.
 						const {
 							sortOrder: _sortOrder,
+							groupId: _groupId,
+							isGroup: _isGroup,
 							projectId: _projectId,
 							createdAt: _createdAt,
 							updatedAt: _updatedAt,

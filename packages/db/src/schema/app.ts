@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { defineRelationsPart } from "drizzle-orm";
 import {
+	type AnyPgColumn,
 	boolean,
 	date,
 	doublePrecision,
@@ -53,7 +54,14 @@ export const line = pgTable(
 		note: text("note"),
 		percentComplete: integer("percent_complete").default(0).notNull(),
 		isMilestone: boolean("is_milestone").default(false).notNull(),
-		// Sparse ordering: new rows land gap-sized steps apart, reorders take midpoints
+		// A Group is a Line containing other Lines (CONTEXT.md). Group rows get
+		// derived Start/End on read; groupId points at a Line's parent Group.
+		isGroup: boolean("is_group").default(false).notNull(),
+		groupId: text("group_id").references((): AnyPgColumn => line.id, {
+			onDelete: "cascade",
+		}),
+		// Sparse ordering: new rows land gap-sized steps apart, reorders take
+		// midpoints. Sibling-relative: display order is a depth-first flatten.
 		sortOrder: doublePrecision("sort_order").notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
@@ -61,7 +69,10 @@ export const line = pgTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("line_projectId_idx").on(table.projectId)],
+	(table) => [
+		index("line_projectId_idx").on(table.projectId),
+		index("line_groupId_idx").on(table.groupId),
+	],
 );
 
 export const EDITOR_STATUSES = ["pending", "active"] as const;
@@ -112,6 +123,11 @@ export const appRelations = defineRelationsPart(
 			project: r.one.project({
 				from: r.line.projectId,
 				to: r.project.id,
+			}),
+			group: r.one.line({
+				from: r.line.groupId,
+				to: r.line.id,
+				alias: "group",
 			}),
 		},
 		projectEditor: {

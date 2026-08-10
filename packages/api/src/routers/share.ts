@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { deriveWindow } from "../domain/dates";
+import { applyDerivedGroupDates } from "../domain/groups";
 import { publicProcedure, router } from "../index";
 
 /** Public, unauthenticated read-only Board via a Share Link token (CONTEXT.md). */
@@ -21,11 +22,13 @@ export const shareRouter = router({
 					message: "Share link not found",
 				});
 			}
-			const lines = await ctx.db
-				.select()
-				.from(line)
-				.where(eq(line.projectId, found.id))
-				.orderBy(asc(line.sortOrder));
+			const lines = applyDerivedGroupDates(
+				await ctx.db
+					.select()
+					.from(line)
+					.where(eq(line.projectId, found.id))
+					.orderBy(asc(line.sortOrder)),
+			);
 			return {
 				project: {
 					id: found.id,
