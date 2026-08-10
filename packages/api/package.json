@@ -28,6 +28,6 @@
 	"devDependencies": {
 		"@projection/config": "workspace:*",
 		"typescript": "catalog:",
-		"vitest": "^3.2.4"
+		"vitest": "^3.2.7"
 	}
 }

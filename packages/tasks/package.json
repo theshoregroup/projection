@@ -22,13 +22,13 @@
 		"@theshoregroup/time": "^0.1.0",
 		"@trigger.dev/sdk": "4.4.3",
 		"dotenv": "catalog:",
-		"resend": "^6.10.0",
+		"resend": "^6.18.0",
 		"trigger.dev": "4.4.3",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@projection/config": "workspace:*",
 		"@trigger.dev/build": "4.4.3",
-		"typescript": "^5"
+		"typescript": "^5.9.3"
 	}
 }
