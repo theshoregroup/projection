@@ -30,9 +30,11 @@ export const Route = createFileRoute("/_auth/projects/$projectId")({
 	pendingComponent: () => <PendingPageComponent />,
 });
 
-function ShareButton() {
+// Props spread onto the Button so the Share dialog's trigger (base-ui
+// `render`) can attach its handlers — swallowing them breaks opening.
+function ShareButton(props: React.ComponentProps<typeof Button>) {
 	return (
-		<Button size="sm">
+		<Button size="sm" {...props}>
 			<ShareFatIcon className="size-4" /> Share
 		</Button>
 	);

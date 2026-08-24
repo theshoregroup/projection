@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assigneeColor } from "../src/lib/board-layout/colors";
+import { assigneeColor } from "../src/domain/colors";
 import {
 	barForLine,
 	boardHeight,
@@ -15,7 +15,7 @@ import {
 	totalDays,
 	weekendSpans,
 	xToDate,
-} from "../src/lib/board-layout/geometry";
+} from "../src/domain/geometry";
 
 const g = { start: "2026-03-01", end: "2026-03-31", dayWidth: 24 };
 
@@ -170,9 +170,9 @@ describe("ticks", () => {
 	it("month ticks land on the 1st", () => {
 		const monthG = { start: "2026-01-15", end: "2026-06-15", dayWidth: 4 };
 		const ticks = ticksFor(monthG);
-		expect(ticks[0].date).toBe("2026-01-15"); // first day always ticks
+		expect(ticks[0]?.date).toBe("2026-01-15"); // first day always ticks
 		expect(ticks.slice(1).every((t) => t.date.endsWith("-01"))).toBe(true);
-		expect(ticks[1].label).toBe("Feb 2026");
+		expect(ticks[1]?.label).toBe("Feb 2026");
 	});
 });
 

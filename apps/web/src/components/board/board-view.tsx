@@ -5,30 +5,23 @@ import {
 	PlusIcon,
 	RowsIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { assigneeColor } from "@projection/api/domain/colors";
 import { addDays, deriveWindow, diffDays } from "@projection/api/domain/dates";
-import { buildRows } from "@projection/api/domain/groups";
-import { sortOrderBetween } from "@projection/api/domain/ordering";
-import { Checkbox } from "@projection/ui/components/checkbox";
-import { useIsMobile } from "@projection/ui/hooks/use-mobile";
-import { useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-
-import BarPopover from "@/components/board/bar-popover";
-import BoardSidePanel from "@/components/board/board-side-panel";
-import InlineTextEdit from "@/components/board/inline-text-edit";
-import ReorderDragPreview from "@/components/board/reorder-drag-preview";
-import ZoomBar from "@/components/board/zoom-bar";
-import { PANEL_MIN_WIDTH, useBoardPanel } from "@/hooks/use-board-panel";
-import { assigneeColor } from "@/lib/board-layout/colors";
 import {
+	BAR_INSET,
+	BAR_RADIUS,
 	barForLine,
 	boardHeight,
 	boardWidth,
+	DATE_COL_WIDTH,
 	DEFAULT_DAY_WIDTH,
+	DIAMOND_SIZE,
 	dateToX,
+	diamondPath,
 	type Geometry,
+	groupCapPaths,
 	HEADER_HEIGHT,
+	INDENT_PX,
 	offscreenSide,
 	ROW_HEIGHT,
 	rowY,
@@ -36,7 +29,20 @@ import {
 	type Viewport,
 	weekendSpans,
 	xToDate,
-} from "@/lib/board-layout/geometry";
+} from "@projection/api/domain/geometry";
+import { buildRows } from "@projection/api/domain/groups";
+import { sortOrderBetween } from "@projection/api/domain/ordering";
+import { Checkbox } from "@projection/ui/components/checkbox";
+import { useIsMobile } from "@projection/ui/hooks/use-mobile";
+import { useQueryClient } from "@tanstack/react-query";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import BarPopover from "@/components/board/bar-popover";
+import BoardSidePanel from "@/components/board/board-side-panel";
+import InlineTextEdit from "@/components/board/inline-text-edit";
+import ReorderDragPreview from "@/components/board/reorder-drag-preview";
+import ZoomBar from "@/components/board/zoom-bar";
+import { PANEL_MIN_WIDTH, useBoardPanel } from "@/hooks/use-board-panel";
 import {
 	type DropTarget,
 	insertionGap,
@@ -75,18 +81,9 @@ interface DragState {
 	target: Element;
 }
 
-const BAR_INSET = 1;
-const BAR_RADIUS = 4;
-const DIAMOND_SIZE = 9;
-/** Indent per nesting depth for Group children (CONTEXT.md — Group). */
-const INDENT_PX = 16;
 /** X offset of the Item text inside a row: padding + checkbox + handle +
  * gaps. Drives the drag depth hint (horizontal pointer → nesting level). */
 const ROW_BASE_X = 44;
-
-function diamondPath(cx: number, cy: number): string {
-	return `M ${cx} ${cy - DIAMOND_SIZE} L ${cx + DIAMOND_SIZE} ${cy} L ${cx} ${cy + DIAMOND_SIZE} L ${cx - DIAMOND_SIZE} ${cy} Z`;
-}
 
 export default function BoardView({
 	project,
@@ -605,6 +602,18 @@ export default function BoardView({
 						>
 							Assignee
 						</span>
+						<span
+							className="shrink-0 pl-1 text-right"
+							style={{ width: DATE_COL_WIDTH }}
+						>
+							Start
+						</span>
+						<span
+							className="shrink-0 pl-1 text-right"
+							style={{ width: DATE_COL_WIDTH }}
+						>
+							End
+						</span>
 					</div>
 					<div ref={rowsRef} className="relative">
 						{rows.length === 0 ? (
@@ -848,6 +857,7 @@ export default function BoardView({
 								// handles, no popover.
 								if (line.isGroup) {
 									const capTop = cy - 3;
+									const caps = groupCapPaths(bar.x, bar.width, capTop);
 									return (
 										<g key={line.id}>
 											<title>{tooltip}</title>
@@ -860,14 +870,8 @@ export default function BoardView({
 												fill={color}
 												fillOpacity={0.9}
 											/>
-											<path
-												d={`M ${bar.x + BAR_INSET} ${capTop + 6} L ${bar.x + BAR_INSET + 7} ${capTop + 6} L ${bar.x + BAR_INSET} ${capTop + 12} Z`}
-												fill={color}
-											/>
-											<path
-												d={`M ${bar.x + bar.width - BAR_INSET} ${capTop + 6} L ${bar.x + bar.width - BAR_INSET - 7} ${capTop + 6} L ${bar.x + bar.width - BAR_INSET} ${capTop + 12} Z`}
-												fill={color}
-											/>
+											<path d={caps.left} fill={color} />
+											<path d={caps.right} fill={color} />
 										</g>
 									);
 								}
@@ -1127,6 +1131,9 @@ function CreateLineRow({
 				className="shrink-0"
 				style={{ width: "var(--board-assignee-width)" }}
 			/>
+			{/* Spacers keep the create row the same width as populated rows */}
+			<span className="shrink-0" style={{ width: DATE_COL_WIDTH }} />
+			<span className="shrink-0" style={{ width: DATE_COL_WIDTH }} />
 		</div>
 	);
 }

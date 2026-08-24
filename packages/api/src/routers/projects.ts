@@ -1,11 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { project, projectEditor } from "@projection/db/schema/app";
+import { line, project, projectEditor } from "@projection/db/schema/app";
 import { TRPCError } from "@trpc/server";
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { applyDerivedGroupDates } from "../domain/groups";
 import { protectedProcedure, router } from "../index";
 import { assertOwner, loadProjectForUser } from "../lib/access";
+import {
+	PDF_PAGE_SIZES,
+	type PdfPageSize,
+	renderBoardPdf,
+} from "../pdf/board-pdf";
 import { projectCreateSchema, projectUpdateSchema } from "../schemas";
+
+const exportPdfInput = z.object({
+	id: z.uuid(),
+	pageSize: z.enum(PDF_PAGE_SIZES).default("A3"),
+});
 
 export const projectsRouter = router({
 	create: protectedProcedure
@@ -33,6 +44,11 @@ export const projectsRouter = router({
 				input.id,
 				ctx.session.user.id,
 			);
+			// The visitor-export flag is an Owner power (CONTEXT.md — Owner);
+			// Editors may still rename and reseed through this same mutation.
+			if (input.allowVisitorsToExport !== undefined) {
+				assertOwner(access.role);
+			}
 			const nextSeedStart = input.seedStart ?? access.project.seedStart;
 			const nextSeedEnd = input.seedEnd ?? access.project.seedEnd;
 			if (nextSeedStart > nextSeedEnd) {
@@ -51,6 +67,8 @@ export const projectsRouter = router({
 							: input.description,
 					seedStart: nextSeedStart,
 					seedEnd: nextSeedEnd,
+					allowVisitorsToExport:
+						input.allowVisitorsToExport ?? access.project.allowVisitorsToExport,
 				})
 				.where(eq(project.id, input.id))
 				.returning();
@@ -102,6 +120,30 @@ export const projectsRouter = router({
 			.filter((row) => row.editorStatus === "active")
 			.map((row) => row.project);
 	}),
+
+	/** PDF export for the Project's members (Owner + Editor); the visitor
+	 * variant lives on the share router (CONTEXT.md — Share Link). */
+	exportPdf: protectedProcedure
+		.input(exportPdfInput)
+		.mutation(async ({ ctx, input }) => {
+			const access = await loadProjectForUser(
+				ctx.db,
+				input.id,
+				ctx.session.user.id,
+			);
+			const lines = applyDerivedGroupDates(
+				await ctx.db
+					.select()
+					.from(line)
+					.where(eq(line.projectId, input.id))
+					.orderBy(asc(line.sortOrder)),
+			);
+			return renderBoardPdf(
+				access.project,
+				lines,
+				input.pageSize as PdfPageSize,
+			);
+		}),
 
 	regenerateShareToken: protectedProcedure
 		.input(z.object({ id: z.uuid() }))

@@ -106,14 +106,16 @@ describe("useBoardPanel", () => {
 	});
 
 	it("clamps panel width to 50vw and the minimum", async () => {
-		window.innerWidth = 600;
+		// 50vw of 1200 = 600, comfortably above the minimum, so a stored 900
+		// clamps down to 600
+		window.innerWidth = 1200;
 
 		window.localStorage.setItem(
 			"projection.boardPanel.width",
-			JSON.stringify(500),
+			JSON.stringify(900),
 		);
 		const { result: tooBig } = renderHook(() => useBoardPanel());
-		await waitFor(() => expect(tooBig.current.panelWidth).toBe(300));
+		await waitFor(() => expect(tooBig.current.panelWidth).toBe(600));
 
 		window.localStorage.setItem(
 			"projection.boardPanel.width",

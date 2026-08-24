@@ -27,6 +27,9 @@ export const projectUpdateSchema = z.object({
 	description: z.string().max(500).nullable().optional(),
 	seedStart: isoDate.optional(),
 	seedEnd: isoDate.optional(),
+	// Owner-only (enforced in the router): whether Share Link visitors may
+	// download the Board as a PDF (CONTEXT.md — Share Link).
+	allowVisitorsToExport: z.boolean().optional(),
 });
 
 export const lineBaseSchema = z.object({

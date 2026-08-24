@@ -1,0 +1,1 @@
+ALTER TABLE "project" ADD COLUMN "allow_visitors_to_export" boolean DEFAULT false NOT NULL;

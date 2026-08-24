@@ -1,14 +1,29 @@
 // Pure Board geometry (ADR 0001): lines + timeline window + zoom → positions.
-// The SVG renderer in the browser — and react-pdf for the deferred PDF export
-// (.scratch/pdf-export) — both consume these functions.
+// The SVG renderer in the browser and the react-pdf renderer (pdf/board-pdf)
+// both consume these functions, so the Board and its export can never drift.
 
-import { addDays, diffDays, type IsoDate } from "@projection/api/domain/dates";
+import { addDays, diffDays, type IsoDate } from "./dates";
 
 export const ROW_HEIGHT = 36;
 export const HEADER_HEIGHT = 44;
 export const MIN_DAY_WIDTH = 3;
 export const MAX_DAY_WIDTH = 140;
 export const DEFAULT_DAY_WIDTH = 24;
+
+// Visual constants shared by both renderers (ADR 0001 — write-once).
+export const BAR_INSET = 1;
+export const BAR_RADIUS = 4;
+export const DIAMOND_SIZE = 9;
+/** Indent per nesting depth for Group children (CONTEXT.md — Group). */
+export const INDENT_PX = 16;
+/** Width of each Start/End date column in the Board's side panel (and its
+ * PDF export) — fits an ISO date at small text size without truncation. */
+export const DATE_COL_WIDTH = 72;
+
+/** Diamond path for a Milestone centered at (cx, cy). */
+export function diamondPath(cx: number, cy: number): string {
+	return `M ${cx} ${cy - DIAMOND_SIZE} L ${cx + DIAMOND_SIZE} ${cy} L ${cx} ${cy + DIAMOND_SIZE} L ${cx - DIAMOND_SIZE} ${cy} Z`;
+}
 
 export interface Geometry {
 	/** First visible day of the Timeline Window. */
@@ -111,7 +126,7 @@ const MONTH_NAMES = [
 const dayOfMonth = (date: IsoDate): number => Number(date.slice(8, 10));
 const monthOf = (date: IsoDate): number => Number(date.slice(5, 7)) - 1;
 const yearOf = (date: IsoDate): string => date.slice(0, 4);
-const monthName = (date: IsoDate): string => MONTH_NAMES[monthOf(date)];
+const monthName = (date: IsoDate): string => MONTH_NAMES[monthOf(date)] ?? "?";
 
 export function ticksFor(g: Geometry): Tick[] {
 	const unit = tickUnitFor(g.dayWidth);
@@ -185,6 +200,18 @@ export function weekendSpans(g: Geometry): Span[] {
 
 export const rowY = (index: number): number =>
 	HEADER_HEIGHT + index * ROW_HEIGHT;
+
+/** Angled end-cap paths for a Group's summary bar (CONTEXT.md — Group). */
+export function groupCapPaths(
+	x: number,
+	width: number,
+	capTop: number,
+): { left: string; right: string } {
+	return {
+		left: `M ${x + BAR_INSET} ${capTop + 6} L ${x + BAR_INSET + 7} ${capTop + 6} L ${x + BAR_INSET} ${capTop + 12} Z`,
+		right: `M ${x + width - BAR_INSET} ${capTop + 6} L ${x + width - BAR_INSET - 7} ${capTop + 6} L ${x + width - BAR_INSET} ${capTop + 12} Z`,
+	};
+}
 
 export const boardHeight = (lineCount: number): number =>
 	HEADER_HEIGHT + Math.max(lineCount, 1) * ROW_HEIGHT;

@@ -19,11 +19,11 @@ const PALETTE = [
 const UNASSIGNED_COLOR = "#6b7280"; // gray-500
 
 export function assigneeColor(assignee: string | null | undefined): string {
-	if (!assignee || !assignee.trim()) return UNASSIGNED_COLOR;
+	if (!assignee?.trim()) return UNASSIGNED_COLOR;
 	const normalized = assignee.trim().toLowerCase();
 	let hash = 0;
 	for (let i = 0; i < normalized.length; i++) {
 		hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0;
 	}
-	return PALETTE[hash % PALETTE.length];
+	return PALETTE[hash % PALETTE.length] ?? UNASSIGNED_COLOR;
 }

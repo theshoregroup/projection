@@ -31,6 +31,10 @@ export const project = pgTable("project", {
 	seedEnd: date("seed_end", { mode: "string" }).notNull(),
 	// Unguessable token powering the public Share Link; regeneratable by the Owner
 	shareToken: text("share_token").unique(),
+	// Whether Share Link visitors may download the Board as a PDF (Owner-controlled)
+	allowVisitorsToExport: boolean("allow_visitors_to_export")
+		.default(false)
+		.notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at")
 		.defaultNow()

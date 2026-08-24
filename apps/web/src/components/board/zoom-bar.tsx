@@ -3,10 +3,10 @@ import {
 	MagnifyingGlassPlusIcon,
 	SidebarSimpleIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { MAX_DAY_WIDTH, MIN_DAY_WIDTH } from "@projection/api/domain/geometry";
 import { Button } from "@projection/ui/components/button";
 import { Slider } from "@projection/ui/components/slider";
 import { cn } from "@projection/ui/lib/utils";
-import { MAX_DAY_WIDTH, MIN_DAY_WIDTH } from "@/lib/board-layout/geometry";
 
 /** Horizontal-only zoom (CONTEXT.md — Board): controls pixels-per-day. */
 export default function ZoomBar({

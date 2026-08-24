@@ -1,7 +1,10 @@
+import { DATE_COL_WIDTH } from "@projection/api/domain/geometry";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const PANEL_DEFAULT_WIDTH = 260;
-export const PANEL_MIN_WIDTH = 180;
+// The panel always carries two date columns (Start, End) alongside Item and
+// Assignee, so the defaults and minimums account for them.
+export const PANEL_DEFAULT_WIDTH = 260 + DATE_COL_WIDTH * 2;
+export const PANEL_MIN_WIDTH = 180 + DATE_COL_WIDTH * 2;
 export const PANEL_COLLAPSE_SNAP = 60;
 export const RAIL_OPEN_THRESHOLD = 90;
 
@@ -79,9 +82,11 @@ export function useBoardPanel() {
 			STORAGE.assigneeWidth,
 			ASSIGNEE_DEFAULT_WIDTH,
 		);
-		const clampedWidth = Math.min(
-			Math.max(storedWidth, PANEL_MIN_WIDTH),
-			Math.floor(window.innerWidth * 0.5),
+		// The content minimum (Item + Assignee + Start + End columns) wins over
+		// the 50vw cap — on narrow windows the panel takes what it needs.
+		const clampedWidth = Math.max(
+			PANEL_MIN_WIDTH,
+			Math.min(storedWidth, Math.floor(window.innerWidth * 0.5)),
 		);
 
 		setIsOpen(storedOpen);
@@ -102,12 +107,16 @@ export function useBoardPanel() {
 	}, []);
 
 	const clampPanel = useCallback(
-		(w: number) => Math.min(Math.max(w, PANEL_MIN_WIDTH), maxPanelWidth),
+		(w: number) => Math.max(PANEL_MIN_WIDTH, Math.min(w, maxPanelWidth)),
 		[maxPanelWidth],
 	);
 
 	const maxAssigneeWidth =
-		panelWidth - ITEM_MIN_WIDTH - INNER_HANDLE_WIDTH - PANEL_CONTENT_OVERHEAD;
+		panelWidth -
+		ITEM_MIN_WIDTH -
+		INNER_HANDLE_WIDTH -
+		PANEL_CONTENT_OVERHEAD -
+		DATE_COL_WIDTH * 2;
 
 	const clampAssignee = useCallback(
 		(aw: number) =>
