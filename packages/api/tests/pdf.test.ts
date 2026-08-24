@@ -112,15 +112,22 @@ describe("BoardPdfDocument", () => {
 		expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
 	});
 
-	it("paginates vertically when rows exceed a page", async () => {
-		const lines = Array.from({ length: 30 }, (_, i) =>
-			makeLine({ item: `Row ${i + 1}` }),
-		);
+	it("packs ~45 thinner rows onto an A3 landscape page", () => {
 		const layout = pdfLayout("A3", {
 			start: project.seedStart,
 			end: project.seedEnd,
 		});
-		expect(lines.length).toBeGreaterThan(layout.rowsPerPage);
+		expect(layout.rowsPerPage).toBeGreaterThanOrEqual(45);
+	});
+
+	it("paginates vertically when rows exceed a page", async () => {
+		const layout = pdfLayout("A3", {
+			start: project.seedStart,
+			end: project.seedEnd,
+		});
+		const lines = Array.from({ length: layout.rowsPerPage + 1 }, (_, i) =>
+			makeLine({ item: `Row ${i + 1}` }),
+		);
 		const buffer = await renderToBuffer(
 			asDocument(
 				createElement(BoardPdfDocument, {

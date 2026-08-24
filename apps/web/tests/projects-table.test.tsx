@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
 import type { useMutation } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ProjectsRow } from "@/lib/collections";
@@ -17,6 +18,7 @@ globalThis.ResizeObserver =
 
 const duplicateMutate = vi.fn();
 const deleteMutate = vi.fn();
+const updateMutate = vi.fn();
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const mod = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -45,6 +47,12 @@ vi.mock("@/utils/trpc", () => ({
 			delete: {
 				mutationOptions: (opts: unknown) => ({ __kind: "delete", opts }),
 			},
+			update: {
+				mutationOptions: (opts: unknown) => ({ __kind: "update", opts }),
+			},
+			byId: {
+				queryKey: ({ id }: { id: string }) => ["projects", "byId", id],
+			},
 		},
 	}),
 }));
@@ -56,7 +64,12 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 		useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 		useMutation: (options: { __kind: string }) =>
 			({
-				mutate: options.__kind === "duplicate" ? duplicateMutate : deleteMutate,
+				mutate:
+					options.__kind === "duplicate"
+						? duplicateMutate
+						: options.__kind === "update"
+							? updateMutate
+							: deleteMutate,
 				isPending: false,
 			}) as unknown as ReturnType<typeof useMutation>,
 	};
@@ -112,7 +125,9 @@ describe("ProjectsTable", () => {
 		);
 		const link = screen.getByText("Kitchen refurb").closest("a");
 		expect(link?.getAttribute("href")).toBe("/projects/$projectId/p1");
-		expect(screen.getAllByText("2026-03-01 → 2026-04-01").length).toBeGreaterThan(0);
+		expect(
+			screen.getAllByText("2026-03-01 → 2026-04-01").length,
+		).toBeGreaterThan(0);
 		expect(screen.getByText("2026-05-01 → 2026-06-15")).toBeTruthy();
 	});
 
@@ -182,5 +197,29 @@ describe("ProjectsTable", () => {
 		expect(deleteMutate).not.toHaveBeenCalled();
 		fireEvent.click(await screen.findByText("Click again to delete"));
 		expect(deleteMutate).toHaveBeenCalledWith({ id: "p1" });
+	});
+
+	it("rename opens the edit dialog and saves name and description", async () => {
+		render(
+			<ProjectsTable variant="mine" projects={mine} empty="No projects yet." />,
+		);
+		fireEvent.click(screen.getByLabelText("Actions for Kitchen refurb"));
+		fireEvent.click(await screen.findByText("Rename"));
+
+		// The dialog outlives the menu closing and is prefilled from the row
+		const nameInput = await screen.findByLabelText("Name");
+		expect((nameInput as HTMLInputElement).value).toBe("Kitchen refurb");
+
+		fireEvent.change(nameInput, { target: { value: "Kitchen extension" } });
+		fireEvent.change(screen.getByLabelText(/Description/), {
+			target: { value: "Ground floor works" },
+		});
+		fireEvent.click(screen.getByText("Save"));
+
+		expect(updateMutate).toHaveBeenCalledWith({
+			id: "p1",
+			name: "Kitchen extension",
+			description: "Ground floor works",
+		});
 	});
 });

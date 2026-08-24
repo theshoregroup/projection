@@ -3,6 +3,7 @@ import {
 	DotsThreeIcon,
 	ImageBrokenIcon,
 	MagnifyingGlassIcon,
+	PencilIcon,
 	SmileyXEyesIcon,
 	TrashIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -39,6 +40,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import RenameProjectDialog from "@/components/rename-project-dialog";
 import type { ProjectsRow } from "@/lib/collections";
 import { useTRPC } from "@/utils/trpc";
 
@@ -54,6 +56,7 @@ function RowActions({ project }: { project: ProjectsRow }) {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const [armed, setArmed] = useState(false);
+	const [renameOpen, setRenameOpen] = useState(false);
 
 	const duplicate = useMutation(
 		trpc.projects.duplicate.mutationOptions({
@@ -83,49 +86,62 @@ function RowActions({ project }: { project: ProjectsRow }) {
 		}),
 	);
 
+	// The rename dialog renders outside the DropdownMenu so it survives the
+	// menu closing (the trigger click dismisses the menu first).
 	return (
-		<DropdownMenu
-			onOpenChange={(open) => {
-				if (!open) setArmed(false);
-			}}
-		>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						variant="ghost"
-						size="icon"
-						aria-label={`Actions for ${project.name}`}
-					/>
-				}
+		<>
+			<DropdownMenu
+				onOpenChange={(open) => {
+					if (!open) setArmed(false);
+				}}
 			>
-				<DotsThreeIcon className="size-5" weight="bold" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-52">
-				<DropdownMenuItem
-					disabled={duplicate.isPending}
-					onClick={() => duplicate.mutate({ id: project.id })}
+				<DropdownMenuTrigger
+					render={
+						<Button
+							variant="ghost"
+							size="icon"
+							aria-label={`Actions for ${project.name}`}
+						/>
+					}
 				>
-					<CopyIcon />
-					Duplicate
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					variant={armed ? "destructive" : "default"}
-					closeOnClick={false}
-					disabled={remove.isPending}
-					onClick={() => {
-						if (!armed) {
-							setArmed(true);
-							return;
-						}
-						setArmed(false);
-						remove.mutate({ id: project.id });
-					}}
-				>
-					<TrashIcon />
-					{armed ? "Click again to delete" : "Delete"}
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+					<DotsThreeIcon className="size-5" weight="bold" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-52">
+					<DropdownMenuItem onClick={() => setRenameOpen(true)}>
+						<PencilIcon />
+						Rename
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						disabled={duplicate.isPending}
+						onClick={() => duplicate.mutate({ id: project.id })}
+					>
+						<CopyIcon />
+						Duplicate
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						variant={armed ? "destructive" : "default"}
+						closeOnClick={false}
+						disabled={remove.isPending}
+						onClick={() => {
+							if (!armed) {
+								setArmed(true);
+								return;
+							}
+							setArmed(false);
+							remove.mutate({ id: project.id });
+						}}
+					>
+						<TrashIcon />
+						{armed ? "Click again to delete" : "Delete"}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<RenameProjectDialog
+				project={project}
+				open={renameOpen}
+				onOpenChange={setRenameOpen}
+			/>
+		</>
 	);
 }
 
@@ -271,7 +287,7 @@ export default function ProjectsTable({
 													<SmileyXEyesIcon />
 												</EmptyMedia>
 												<EmptyTitle>No projects match "{search}".</EmptyTitle>
-                    </EmptyHeader>
+											</EmptyHeader>
 										</Empty>
 									</TableCell>
 								</TableRow>

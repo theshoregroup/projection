@@ -22,14 +22,10 @@ import {
 	BAR_INSET,
 	BAR_RADIUS,
 	barForLine,
-	DIAMOND_SIZE,
-	diamondPath,
 	type Geometry,
 	groupCapPaths,
 	HEADER_HEIGHT,
 	INDENT_PX,
-	ROW_HEIGHT,
-	rowY,
 	ticksFor,
 	weekendSpans,
 } from "../domain/geometry";
@@ -91,11 +87,28 @@ const MIN_PDF_DAY_WIDTH = 1.5;
 /** Scale-to-fit ceiling: 28 is the Board's day-tick threshold (tickUnitFor),
  * so short windows show day columns on paper large enough to hold them. */
 const MAX_PDF_DAY_WIDTH = 28;
-const NOTE_FONT_SIZE = 8;
+/** Paper rows are much thinner than the Board's 36px rows, so ~45 fit on
+ * one A3 landscape page. Everything vertical keys off this one constant. */
+const PDF_ROW_HEIGHT = 14;
+/** Bar vertical padding: the Board's 6px inset at 36px scales to ~2.5pt. */
+const BAR_PAD = 2.5;
+/** Milestone diamonds shrink to fit the thinner rows (Board: 9px). */
+const PDF_DIAMOND_SIZE = 6;
+const NOTE_FONT_SIZE = 7;
 const TICK_FONT_SIZE = 8;
-const ROW_TEXT_FONT_SIZE = 10;
-const ASSIGNEE_FONT_SIZE = 8;
-const DATE_FONT_SIZE = 8;
+const ROW_TEXT_FONT_SIZE = 8;
+const ASSIGNEE_FONT_SIZE = 7;
+const DATE_FONT_SIZE = 7;
+
+/** Row top within the Svg, mirroring the Board's rowY at paper row height. */
+const pdfRowY = (index: number): number =>
+	HEADER_HEIGHT + index * PDF_ROW_HEIGHT;
+
+/** Milestone diamond path centered at (cx, cy), sized for the paper rows. */
+function pdfDiamondPath(cx: number, cy: number): string {
+	const s = PDF_DIAMOND_SIZE;
+	return `M ${cx} ${cy - s} L ${cx + s} ${cy} L ${cx} ${cy + s} L ${cx - s} ${cy} Z`;
+}
 
 // Light-theme colors (packages/ui globals.css — PDFs print on white)
 const COLOR_BORDER = "#e9e4df";
@@ -156,7 +169,7 @@ const styles = StyleSheet.create({
 		color: COLOR_MUTED,
 	},
 	rowLine: {
-		height: ROW_HEIGHT,
+		height: PDF_ROW_HEIGHT,
 		flexDirection: "row",
 		alignItems: "center",
 		borderBottomWidth: 0.5,
@@ -230,7 +243,7 @@ export function pdfLayout(
 	// −2 for the board container's top/bottom borders
 	const rowsPerPage = Math.max(
 		1,
-		Math.floor((bodyHeight - HEADER_HEIGHT - 2) / ROW_HEIGHT),
+		Math.floor((bodyHeight - HEADER_HEIGHT - 2) / PDF_ROW_HEIGHT),
 	);
 
 	return {
@@ -256,7 +269,7 @@ function BoardSvg({
 }) {
 	const { geom } = layout;
 	const width = layout.timelineWidth;
-	const height = HEADER_HEIGHT + rows.length * ROW_HEIGHT;
+	const height = HEADER_HEIGHT + rows.length * PDF_ROW_HEIGHT;
 	const ticks = ticksFor(geom);
 	const weekends = weekendSpans(geom);
 
@@ -294,8 +307,8 @@ function BoardSvg({
 					key={`sep-${row.line.id}`}
 					x1={0}
 					x2={width}
-					y1={rowY(index) + ROW_HEIGHT - 0.5}
-					y2={rowY(index) + ROW_HEIGHT - 0.5}
+					y1={pdfRowY(index) + PDF_ROW_HEIGHT - 0.5}
+					y2={pdfRowY(index) + PDF_ROW_HEIGHT - 0.5}
 					stroke={COLOR_BORDER}
 					strokeWidth={1}
 					strokeOpacity={0.5}
@@ -309,13 +322,15 @@ function BoardSvg({
 				const color = assigneeColor(
 					(line as { assignee?: string | null }).assignee,
 				);
-				const cy = rowY(index) + ROW_HEIGHT / 2;
+				const cy = pdfRowY(index) + PDF_ROW_HEIGHT / 2;
 				const note = (line as { note?: string | null }).note ?? null;
 				const percentComplete =
 					(line as { percentComplete?: number }).percentComplete ?? 0;
 
 				if (line.isGroup) {
-					const capTop = cy - 3;
+					// The summary bar + caps are 12pt tall total; centering them keeps
+					// the caps inside the thinner paper rows.
+					const capTop = cy - 6;
 					const caps = groupCapPaths(bar.x, bar.width, capTop);
 					return (
 						<G key={line.id}>
@@ -333,7 +348,7 @@ function BoardSvg({
 							{note ? (
 								<Text
 									x={bar.x + 6}
-									y={cy + 3}
+									y={cy + 2.5}
 									fill="#ffffff"
 									style={{ fontSize: NOTE_FONT_SIZE }}
 								>
@@ -347,11 +362,11 @@ function BoardSvg({
 				if (bar.isMilestone) {
 					return (
 						<G key={line.id}>
-							<Path d={diamondPath(bar.x, cy)} fill={color} />
+							<Path d={pdfDiamondPath(bar.x, cy)} fill={color} />
 							{note ? (
 								<Text
-									x={bar.x + DIAMOND_SIZE + 4}
-									y={cy + 3}
+									x={bar.x + PDF_DIAMOND_SIZE + 4}
+									y={cy + 2.5}
 									fill={COLOR_MUTED}
 									style={{ fontSize: NOTE_FONT_SIZE }}
 								>
@@ -369,9 +384,9 @@ function BoardSvg({
 					<G key={line.id}>
 						<Rect
 							x={barX}
-							y={rowY(index) + 6}
+							y={pdfRowY(index) + BAR_PAD}
 							width={barW}
-							height={ROW_HEIGHT - 12}
+							height={PDF_ROW_HEIGHT - BAR_PAD * 2}
 							rx={BAR_RADIUS}
 							fill={color}
 							fillOpacity={0.85}
@@ -379,9 +394,9 @@ function BoardSvg({
 						{percentComplete > 0 ? (
 							<Rect
 								x={barX}
-								y={rowY(index) + 6}
+								y={pdfRowY(index) + BAR_PAD}
 								width={(barW * percentComplete) / 100}
-								height={ROW_HEIGHT - 12}
+								height={PDF_ROW_HEIGHT - BAR_PAD * 2}
 								rx={BAR_RADIUS}
 								fill={COLOR_BAR_SHADE}
 								fillOpacity={0.35}
@@ -390,7 +405,7 @@ function BoardSvg({
 						{note ? (
 							<Text
 								x={barX + 6}
-								y={cy + 3}
+								y={cy + 2.5}
 								fill="#ffffff"
 								style={{ fontSize: NOTE_FONT_SIZE }}
 							>

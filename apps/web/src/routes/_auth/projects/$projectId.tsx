@@ -1,4 +1,4 @@
-import { ShareFatIcon } from "@phosphor-icons/react/dist/ssr";
+import { PencilIcon, ShareFatIcon } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@projection/ui/components/button";
 
 import { SidebarTrigger } from "@projection/ui/components/sidebar";
@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import BoardView from "@/components/board/board-view";
 import SelectionActions from "@/components/board/selection-actions";
 import SharePanel from "@/components/board/share-panel";
+import RenameProjectDialog from "@/components/rename-project-dialog";
 import { NotFoundComponent } from "@/components/ui/not-found";
 import { getLinesCollection } from "@/lib/collections";
 import { useTRPC, useTRPCClient } from "@/utils/trpc";
@@ -89,6 +90,7 @@ function ProjectPage() {
 		new Set(),
 	);
 	const [renameItemId, setRenameItemId] = useState<string | null>(null);
+	const [editProjectOpen, setEditProjectOpen] = useState(false);
 
 	function toggleSelected(lineId: string, checked: boolean) {
 		setSelectedIds((prev) => {
@@ -123,6 +125,19 @@ function ProjectPage() {
 					) : null}
 				</div>
 				<div className="flex items-center gap-2">
+					{/* Owners and Editors may both rename (CONTEXT.md — Editor) */}
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={() => setEditProjectOpen(true)}
+					>
+						<PencilIcon className="size-4" /> Edit
+					</Button>
+					<RenameProjectDialog
+						project={project}
+						open={editProjectOpen}
+						onOpenChange={setEditProjectOpen}
+					/>
 					<SelectionActions
 						projectId={project.id}
 						selectedIds={selectedIds}

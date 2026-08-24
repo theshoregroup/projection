@@ -195,4 +195,19 @@ describe("assigneeColor", () => {
 		expect(assigneeColor(null)).toBe("#6b7280");
 		expect(assigneeColor("  ")).toBe("#6b7280");
 	});
+	it("spreads distinct names across the palette", () => {
+		const names = [
+			"Alice",
+			"Bob",
+			"Carol",
+			"Dave",
+			"Erin",
+			"Frank",
+			"Grace",
+			"Heidi",
+		];
+		const colors = new Set(names.map(assigneeColor));
+		// 36 slots, 8 names — a broken hash would cluster far tighter than this
+		expect(colors.size).toBeGreaterThanOrEqual(6);
+	});
 });
