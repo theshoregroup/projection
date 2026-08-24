@@ -10,8 +10,12 @@ import { describe, expect, it } from "vitest";
 import { tickUnitFor } from "../src/domain/geometry";
 import {
 	BoardPdfDocument,
+	bodyRowSpace,
 	type PdfBoardLine,
+	paginateRows,
 	pdfLayout,
+	rowHeightFor,
+	textLines,
 } from "../src/pdf/board-pdf";
 
 let seq = 0;
@@ -152,6 +156,75 @@ describe("BoardPdfDocument", () => {
 					project,
 					lines: [],
 					pageSize: "A2",
+				}),
+			),
+		);
+		expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+	});
+});
+
+describe("PDF row wrapping", () => {
+	it("textLines counts wrapped lines at a column width", () => {
+		expect(textLines("", 140, 8)).toBe(1);
+		expect(textLines("short", 140, 8)).toBe(1);
+		// 140pt at 8pt font ≈ 33 chars/line; 100 chars wraps to ~4 lines
+		expect(textLines("x".repeat(100), 140, 8)).toBeGreaterThanOrEqual(3);
+	});
+
+	it("rowHeightFor grows for long titles, stays compact for short ones", () => {
+		const short = rowHeightFor(makeLine({ item: "Short" }), 0);
+		expect(short).toBe(14); // PDF_ROW_HEIGHT
+
+		const tall = rowHeightFor(makeLine({ item: "x".repeat(200) }), 0);
+		expect(tall).toBeGreaterThan(short);
+
+		// A long Assignee also grows the row
+		const longAssignee = rowHeightFor(
+			makeLine({ item: "Short", assignee: "y".repeat(120) }),
+			0,
+		);
+		expect(longAssignee).toBeGreaterThan(short);
+
+		// Deeper nesting narrows the Item column → taller rows for same title
+		const deep = rowHeightFor(makeLine({ item: "x".repeat(120) }), 3);
+		const shallow = rowHeightFor(makeLine({ item: "x".repeat(120) }), 0);
+		expect(deep).toBeGreaterThanOrEqual(shallow);
+	});
+
+	it("paginateRows packs by height so a tall row shrinks its page", () => {
+		const space = bodyRowSpace("A3");
+		// Fill most of a page with short rows, then one very tall row that
+		// cannot fit in the leftover space must start a new page.
+		const shortCount = Math.floor(space / 14) - 2;
+		const rows = [
+			...Array.from({ length: shortCount }, (_, i) => ({
+				line: makeLine({ item: `Row ${i + 1}` }),
+				depth: 0,
+			})),
+			{ line: makeLine({ item: "x".repeat(400) }), depth: 0 },
+		];
+		const pages = paginateRows(rows, space);
+		expect(pages).toHaveLength(2);
+		expect(pages[0]).toHaveLength(shortCount);
+		expect(pages[1]).toHaveLength(1);
+	});
+
+	it("paginateRows always fits at least one row, however tall", () => {
+		const space = bodyRowSpace("A3");
+		const huge = { line: makeLine({ item: "x".repeat(5000) }), depth: 0 };
+		const pages = paginateRows([huge], space);
+		expect(pages).toHaveLength(1);
+		expect(pages[0]).toHaveLength(1);
+	});
+
+	it("a board with a very long title still exports", async () => {
+		const lines = [makeLine({ item: "x".repeat(300) })];
+		const buffer = await renderToBuffer(
+			asDocument(
+				createElement(BoardPdfDocument, {
+					project,
+					lines,
+					pageSize: "A3",
 				}),
 			),
 		);

@@ -99,10 +99,9 @@ const TICK_FONT_SIZE = 8;
 const ROW_TEXT_FONT_SIZE = 8;
 const ASSIGNEE_FONT_SIZE = 7;
 const DATE_FONT_SIZE = 7;
-
-/** Row top within the Svg, mirroring the Board's rowY at paper row height. */
-const pdfRowY = (index: number): number =>
-	HEADER_HEIGHT + index * PDF_ROW_HEIGHT;
+/** Wrapped-row metrics: each wrapped text line plus vertical padding. */
+const LINE_HEIGHT = ROW_TEXT_FONT_SIZE * 1.25;
+const ROW_VPAD = 3;
 
 /** Milestone diamond path centered at (cx, cy), sized for the paper rows. */
 function pdfDiamondPath(cx: number, cy: number): string {
@@ -169,7 +168,6 @@ const styles = StyleSheet.create({
 		color: COLOR_MUTED,
 	},
 	rowLine: {
-		height: PDF_ROW_HEIGHT,
 		flexDirection: "row",
 		alignItems: "center",
 		borderBottomWidth: 0.5,
@@ -191,7 +189,7 @@ const styles = StyleSheet.create({
 		fontSize: DATE_FONT_SIZE,
 		color: COLOR_MUTED,
 		width: DATE_COL_WIDTH,
-		textAlign: "right",
+		textAlign: "center",
 	},
 	footer: {
 		height: FOOTER_HEIGHT,
@@ -257,19 +255,103 @@ export function pdfLayout(
 	};
 }
 
+/** Vertical space (pt) available for rows on one page: the body minus the
+ * repeated axis header and the board container's top/bottom borders. */
+export function bodyRowSpace(pageSize: PdfPageSize): number {
+	const dims = PAGE_DIMENSIONS[pageSize];
+	const pageHeight = dims.width; // landscape
+	return (
+		pageHeight -
+		PAGE_MARGIN * 2 -
+		TITLE_BLOCK_HEIGHT -
+		FOOTER_HEIGHT -
+		HEADER_HEIGHT -
+		2
+	);
+}
+
+/** How many text lines a panel cell wraps to at its column width. Uses the
+ * same 0.52 char-width heuristic as the truncators, inverted to count. */
+export function textLines(
+	text: string,
+	widthPt: number,
+	fontSize: number,
+): number {
+	const charsPerLine = Math.max(1, Math.floor(widthPt / (fontSize * 0.52)));
+	return Math.max(1, Math.ceil(text.length / charsPerLine));
+}
+
+/** A paper row grows when the Item or Assignee text wraps: it is the tallest
+ * of the two cells, with a little vertical breathing room, and never shorter
+ * than the compact single-line row. */
+export function rowHeightFor(line: PdfBoardLine, depth: number): number {
+	const itemWidth = ITEM_COL_WIDTH - depth * INDENT_PX;
+	const lines = Math.max(
+		textLines(line.item, itemWidth, ROW_TEXT_FONT_SIZE),
+		textLines(line.assignee ?? "", ASSIGNEE_COL_WIDTH, ASSIGNEE_FONT_SIZE),
+	);
+	return Math.max(PDF_ROW_HEIGHT, lines * LINE_HEIGHT + ROW_VPAD);
+}
+
+/** Greedy vertical pagination: pack rows onto a page until the next row's
+ * height would overflow, so tall (wrapped) rows shrink their page's count.
+ * Always at least one row per page so a single huge row still exports. */
+export function paginateRows<T extends { line: PdfBoardLine; depth: number }>(
+	rows: T[],
+	rowSpace: number,
+): T[][] {
+	const pages: T[][] = [];
+	let page: T[] = [];
+	let used = 0;
+	for (const row of rows) {
+		const h = rowHeightFor(row.line, row.depth);
+		if (page.length > 0 && used + h > rowSpace) {
+			pages.push(page);
+			page = [];
+			used = 0;
+		}
+		page.push(row);
+		used += h;
+	}
+	if (page.length > 0 || pages.length === 0) pages.push(page);
+	return pages;
+}
+
+/** Per-row top offsets (pt) within one page's Svg: the prefix sums of the
+ * row heights, so bars/separators/notes align with the variable panel rows. */
+export function rowTops<T extends { line: PdfBoardLine; depth: number }>(
+	rows: T[],
+): number[] {
+	const tops: number[] = [];
+	let y = HEADER_HEIGHT;
+	for (const row of rows) {
+		tops.push(y);
+		y += rowHeightFor(row.line, row.depth);
+	}
+	return tops;
+}
+
 // ---------------------------------------------------------------------------
 // Svg drawing (mirrors the Board's SVG layers, minus interaction chrome)
 
 function BoardSvg({
 	layout,
 	rows,
+	tops,
 }: {
 	layout: PdfLayout;
 	rows: Array<BoardRow<PdfBoardLine>>;
+	/** Per-row top offsets from rowTops() — matches the variable panel rows. */
+	tops: number[];
 }) {
 	const { geom } = layout;
 	const width = layout.timelineWidth;
-	const height = HEADER_HEIGHT + rows.length * PDF_ROW_HEIGHT;
+	const lastRow = rows.length > 0 ? rows[rows.length - 1] : undefined;
+	const height =
+		lastRow === undefined
+			? HEADER_HEIGHT
+			: (tops[rows.length - 1] ?? HEADER_HEIGHT) +
+				rowHeightFor(lastRow.line, lastRow.depth);
 	const ticks = ticksFor(geom);
 	const weekends = weekendSpans(geom);
 
@@ -307,8 +389,16 @@ function BoardSvg({
 					key={`sep-${row.line.id}`}
 					x1={0}
 					x2={width}
-					y1={pdfRowY(index) + PDF_ROW_HEIGHT - 0.5}
-					y2={pdfRowY(index) + PDF_ROW_HEIGHT - 0.5}
+					y1={
+						(tops[index] ?? HEADER_HEIGHT) +
+						rowHeightFor(row.line, row.depth) -
+						0.5
+					}
+					y2={
+						(tops[index] ?? HEADER_HEIGHT) +
+						rowHeightFor(row.line, row.depth) -
+						0.5
+					}
 					stroke={COLOR_BORDER}
 					strokeWidth={1}
 					strokeOpacity={0.5}
@@ -322,7 +412,9 @@ function BoardSvg({
 				const color = assigneeColor(
 					(line as { assignee?: string | null }).assignee,
 				);
-				const cy = pdfRowY(index) + PDF_ROW_HEIGHT / 2;
+				const cy =
+					(tops[index] ?? HEADER_HEIGHT) +
+					rowHeightFor(row.line, row.depth) / 2;
 				const note = (line as { note?: string | null }).note ?? null;
 				const percentComplete =
 					(line as { percentComplete?: number }).percentComplete ?? 0;
@@ -380,13 +472,17 @@ function BoardSvg({
 
 				const barX = bar.x + BAR_INSET;
 				const barW = Math.max(bar.width - BAR_INSET * 2, 2);
+				// Bars keep the compact height and center within the (possibly
+				// wrapped, taller) row.
+				const barH = PDF_ROW_HEIGHT - BAR_PAD * 2;
+				const barY = cy - barH / 2;
 				return (
 					<G key={line.id}>
 						<Rect
 							x={barX}
-							y={pdfRowY(index) + BAR_PAD}
+							y={barY}
 							width={barW}
-							height={PDF_ROW_HEIGHT - BAR_PAD * 2}
+							height={barH}
 							rx={BAR_RADIUS}
 							fill={color}
 							fillOpacity={0.85}
@@ -394,9 +490,9 @@ function BoardSvg({
 						{percentComplete > 0 ? (
 							<Rect
 								x={barX}
-								y={pdfRowY(index) + BAR_PAD}
+								y={barY}
 								width={(barW * percentComplete) / 100}
-								height={PDF_ROW_HEIGHT - BAR_PAD * 2}
+								height={barH}
 								rx={BAR_RADIUS}
 								fill={COLOR_BAR_SHADE}
 								fillOpacity={0.35}
@@ -455,12 +551,9 @@ export function BoardPdfDocument({
 	const rows = buildRows(lines);
 	const layout = pdfLayout(pageSize, window);
 
-	// Vertical pagination: chunk the flattened rows, axis header repeated
-	const pages: Array<Array<BoardRow<PdfBoardLine>>> = [];
-	for (let i = 0; i < rows.length; i += layout.rowsPerPage) {
-		pages.push(rows.slice(i, i + layout.rowsPerPage));
-	}
-	if (pages.length === 0) pages.push([]); // an empty Project still exports
+	// Vertical pagination: pack rows by their (variable, wrap-aware) heights,
+	// axis header repeated on each page. An empty Project still exports.
+	const pages = paginateRows(rows, bodyRowSpace(pageSize));
 
 	const generated = generatedAt.toISOString().slice(0, 10);
 
@@ -502,40 +595,44 @@ export function BoardPdfDocument({
 									End
 								</Text>
 							</View>
-							{pageRows.map((row) => (
-								<View
-									key={row.line.id}
-									style={[
-										styles.rowLine,
-										{ paddingLeft: 4 + row.depth * INDENT_PX },
-									]}
-								>
-									<Text
+							{pageRows.map((row) => {
+								// Item/Assignee show in full — Text wraps within its fixed
+								// width, and the row height (shared with the Svg via rowTops)
+								// grows to fit the tallest wrapped cell.
+								const height = rowHeightFor(row.line, row.depth);
+								return (
+									<View
+										key={row.line.id}
 										style={[
-											styles.rowItem,
-											{ width: ITEM_COL_WIDTH - row.depth * INDENT_PX },
-											row.line.isGroup ? styles.rowItemGroup : {},
+											styles.rowLine,
+											{ paddingLeft: 4 + row.depth * INDENT_PX, height },
 										]}
 									>
-										{truncateRowText(
-											row.line.item,
-											ITEM_COL_WIDTH - row.depth * INDENT_PX,
-										)}
-									</Text>
-									<Text style={styles.rowAssignee}>
-										{truncateRowText(
-											row.line.assignee ?? "",
-											ASSIGNEE_COL_WIDTH,
-										)}
-									</Text>
-									<Text style={styles.rowDate}>{row.line.startDate}</Text>
-									<Text style={styles.rowDate}>{row.line.endDate}</Text>
-								</View>
-							))}
+										<Text
+											style={[
+												styles.rowItem,
+												{ width: ITEM_COL_WIDTH - row.depth * INDENT_PX },
+												row.line.isGroup ? styles.rowItemGroup : {},
+											]}
+										>
+											{row.line.item}
+										</Text>
+										<Text style={styles.rowAssignee}>
+											{row.line.assignee ?? ""}
+										</Text>
+										<Text style={styles.rowDate}>{row.line.startDate}</Text>
+										<Text style={styles.rowDate}>{row.line.endDate}</Text>
+									</View>
+								);
+							})}
 						</View>
 
 						{/* Right column: the timeline */}
-						<BoardSvg layout={layout} rows={pageRows} />
+						<BoardSvg
+							layout={layout}
+							rows={pageRows}
+							tops={rowTops(pageRows)}
+						/>
 					</View>
 
 					<View style={styles.footer}>
@@ -547,15 +644,6 @@ export function BoardPdfDocument({
 			))}
 		</Document>
 	);
-}
-
-function truncateRowText(text: string, widthPt: number): string {
-	const maxChars = Math.max(
-		0,
-		Math.floor(widthPt / (ROW_TEXT_FONT_SIZE * 0.52)),
-	);
-	if (text.length <= maxChars) return text;
-	return maxChars < 2 ? "" : `${text.slice(0, maxChars - 1)}…`;
 }
 
 /** Renders a Project's Board to PDF bytes; shared by the authenticated

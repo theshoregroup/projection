@@ -602,18 +602,9 @@ export default function BoardView({
 						>
 							Assignee
 						</span>
-						<span
-							className="shrink-0 pl-1 text-right"
-							style={{ width: DATE_COL_WIDTH }}
-						>
-							Start
-						</span>
-						<span
-							className="shrink-0 pl-1 text-right"
-							style={{ width: DATE_COL_WIDTH }}
-						>
-							End
-						</span>
+						{/* No Start/End header labels — the per-row date values are
+						 * self-evident, and the rows carry no date cells, so the
+						 * Assignee label sits flush right, directly over its column. */}
 					</div>
 					<div ref={rowsRef} className="relative">
 						{rows.length === 0 ? (
@@ -1131,9 +1122,6 @@ function CreateLineRow({
 				className="shrink-0"
 				style={{ width: "var(--board-assignee-width)" }}
 			/>
-			{/* Spacers keep the create row the same width as populated rows */}
-			<span className="shrink-0" style={{ width: DATE_COL_WIDTH }} />
-			<span className="shrink-0" style={{ width: DATE_COL_WIDTH }} />
 		</div>
 	);
 }
