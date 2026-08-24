@@ -16,9 +16,6 @@ export const BAR_RADIUS = 4;
 export const DIAMOND_SIZE = 9;
 /** Indent per nesting depth for Group children (CONTEXT.md — Group). */
 export const INDENT_PX = 16;
-/** Width of each Start/End date column in the Board's side panel (and its
- * PDF export) — fits an ISO date at small text size without truncation. */
-export const DATE_COL_WIDTH = 72;
 
 /** Diamond path for a Milestone centered at (cx, cy). */
 export function diamondPath(cx: number, cy: number): string {

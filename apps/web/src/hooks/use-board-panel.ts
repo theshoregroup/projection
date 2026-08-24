@@ -1,10 +1,9 @@
-import { DATE_COL_WIDTH } from "@projection/api/domain/geometry";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// The panel always carries two date columns (Start, End) alongside Item and
-// Assignee, so the defaults and minimums account for them.
-export const PANEL_DEFAULT_WIDTH = 260 + DATE_COL_WIDTH * 2;
-export const PANEL_MIN_WIDTH = 180 + DATE_COL_WIDTH * 2;
+// The panel carries Item + Assignee columns (dates live on the timeline
+// side, not as panel cells), so the defaults and minimums account for them.
+export const PANEL_DEFAULT_WIDTH = 260;
+export const PANEL_MIN_WIDTH = 180;
 export const PANEL_COLLAPSE_SNAP = 60;
 export const RAIL_OPEN_THRESHOLD = 90;
 
@@ -112,11 +111,7 @@ export function useBoardPanel() {
 	);
 
 	const maxAssigneeWidth =
-		panelWidth -
-		ITEM_MIN_WIDTH -
-		INNER_HANDLE_WIDTH -
-		PANEL_CONTENT_OVERHEAD -
-		DATE_COL_WIDTH * 2;
+		panelWidth - ITEM_MIN_WIDTH - INNER_HANDLE_WIDTH - PANEL_CONTENT_OVERHEAD;
 
 	const clampAssignee = useCallback(
 		(aw: number) =>

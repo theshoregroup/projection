@@ -13,7 +13,6 @@ import {
 	barForLine,
 	boardHeight,
 	boardWidth,
-	DATE_COL_WIDTH,
 	DEFAULT_DAY_WIDTH,
 	DIAMOND_SIZE,
 	dateToX,
