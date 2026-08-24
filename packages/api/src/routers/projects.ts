@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { line, project, projectEditor } from "@projection/db/schema/app";
+import { user } from "@projection/db/schema/auth";
 import { TRPCError } from "@trpc/server";
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { duplicateLines } from "../domain/duplicate";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { protectedProcedure, router } from "../index";
 import { assertOwner, loadProjectForUser } from "../lib/access";
@@ -88,11 +90,50 @@ export const projectsRouter = router({
 			return { id: input.id };
 		}),
 
+	/** Forks a Project into a new one the caller owns: same seed window and
+	 * Lines (groupId references remapped to fresh ids), but a fresh Share
+	 * Link token and no Editors — sharing never crosses a duplicate. */
+	duplicate: protectedProcedure
+		.input(z.object({ id: z.uuid() }))
+		.mutation(async ({ ctx, input }) => {
+			const access = await loadProjectForUser(
+				ctx.db,
+				input.id,
+				ctx.session.user.id,
+			);
+			assertOwner(access.role);
+			const lines = await ctx.db
+				.select()
+				.from(line)
+				.where(eq(line.projectId, input.id))
+				.orderBy(asc(line.sortOrder));
+
+			return ctx.db.transaction(async (tx) => {
+				const [created] = await tx
+					.insert(project)
+					.values({
+						ownerId: ctx.session.user.id,
+						name: `${access.project.name} (copy)`,
+						description: access.project.description,
+						seedStart: access.project.seedStart,
+						seedEnd: access.project.seedEnd,
+						shareToken: randomUUID(),
+					})
+					.returning();
+				if (!created) {
+					throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+				}
+				const copied = duplicateLines(lines, created.id);
+				if (copied.length > 0) {
+					await tx.insert(line).values(copied);
+				}
+				return created;
+			});
+		}),
+
 	byId: protectedProcedure
 		.input(z.object({ id: z.uuid() }))
 		.query(async ({ ctx, input }) => {
-			console.log("HERE", input.id, ctx.session.user.id);
-
 			const access = await loadProjectForUser(
 				ctx.db,
 				input.id,
@@ -111,14 +152,19 @@ export const projectsRouter = router({
 
 	listShared: protectedProcedure.query(async ({ ctx }) => {
 		const rows = await ctx.db
-			.select({ project, editorStatus: projectEditor.status })
+			.select({
+				project,
+				editorStatus: projectEditor.status,
+				ownerName: user.name,
+			})
 			.from(projectEditor)
 			.innerJoin(project, eq(projectEditor.projectId, project.id))
+			.innerJoin(user, eq(project.ownerId, user.id))
 			.where(eq(projectEditor.userId, ctx.session.user.id))
 			.orderBy(asc(project.name));
 		return rows
 			.filter((row) => row.editorStatus === "active")
-			.map((row) => row.project);
+			.map((row) => ({ ...row.project, ownerName: row.ownerName }));
 	}),
 
 	/** PDF export for the Project's members (Owner + Editor); the visitor

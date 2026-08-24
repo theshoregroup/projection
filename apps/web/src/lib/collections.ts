@@ -14,8 +14,12 @@ export type ProjectRow = RouterOutputs["projects"]["listMine"][number];
 export type LineRow = RouterOutputs["lines"]["list"][number];
 export type EditorRow = RouterOutputs["sharing"]["listEditors"][number];
 
-/** A Project plus how the signed-in user relates to it. */
-export type ProjectsRow = ProjectRow & { relation: "mine" | "shared" };
+/** A Project plus how the signed-in user relates to it. `ownerName` is only
+ * populated for shared Projects (CONTEXT.md — Owner) — it's who shared it. */
+export type ProjectsRow = ProjectRow & {
+	relation: "mine" | "shared";
+	ownerName?: string;
+};
 
 export const BOARD_REFETCH_INTERVAL = 20_000;
 
