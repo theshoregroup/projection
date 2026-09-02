@@ -11,7 +11,7 @@ import { authClient } from "@/lib/auth-client";
 import { getProjectsCollection } from "@/lib/collections";
 import { useTRPCClient } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_auth/")({
+export const Route = createFileRoute("/_org/dashboard")({
 	component: Dashboard,
 });
 

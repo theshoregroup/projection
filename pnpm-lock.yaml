@@ -150,6 +150,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      date-fns:
+        specifier: ^4.4.0
+        version: 4.4.0
       dotenv:
         specifier: 'catalog:'
         version: 17.4.2
@@ -293,6 +296,15 @@ importers:
       '@projection/env':
         specifier: workspace:*
         version: link:../env
+      '@projection/tasks':
+        specifier: workspace:*
+        version: link:../tasks
+      '@theshoregroup/settings-better-auth-plugin':
+        specifier: ^0.2.1
+        version: 0.2.1(@theshoregroup/settings-core@0.1.2(zod@4.4.3))(better-auth@1.7.2(@opentelemetry/api@1.9.0)(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.0)(rollup@4.62.3)(supports-color@10.2.2)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)))(drizzle-kit@1.0.0-rc.3)(drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(pg@8.22.0)(zod@4.4.3))(next@16.2.6(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.22.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.14)(vitest@3.2.7(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.33.0)(supports-color@10.2.2)(tsx@4.23.1)))(nanostores@1.4.1)(zod@4.4.3)
+      '@theshoregroup/settings-core':
+        specifier: 0.1.2
+        version: 0.1.2(zod@4.4.3)
       better-auth:
         specifier: 'catalog:'
         version: 1.7.2(@opentelemetry/api@1.9.0)(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.0)(rollup@4.62.3)(supports-color@10.2.2)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)))(drizzle-kit@1.0.0-rc.3)(drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(pg@8.22.0)(zod@4.4.3))(next@16.2.6(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.22.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.14)(vitest@3.2.7(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.33.0)(supports-color@10.2.2)(tsx@4.23.1))
@@ -3510,6 +3522,21 @@ packages:
         optional: true
       '@types/react-dom':
         optional: true
+
+  '@theshoregroup/settings-better-auth-plugin@0.2.1':
+    resolution: {integrity: sha512-jUmJrSyACbvImjtYLNpIiD51doRFgxI8bYvNf8SGF10Ms3FeP372DJLN6AnjZo+jmeo4PxaLBYFrc9S8ATLLpg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@theshoregroup/settings-core': 0.1.2
+      better-auth: ^1.6.0
+      nanostores: ^1.0.0
+      zod: ^4.0.0
+
+  '@theshoregroup/settings-core@0.1.2':
+    resolution: {integrity: sha512-B/5Ss+P+a18iGxWk5xi6WNGu8UHbdZ4bCb7C92FfEA29cZ+yG4UtlVOWTStMDmypbUyGaZc4SODUBIH4k8veig==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      zod: ^4.0.0
 
   '@theshoregroup/time@0.1.0':
     resolution: {integrity: sha512-8Rboz0Ljt1HEzMpx6tMu+E8dNlIDFnQUIc6NBj2W5/LDPTyI1rTpn8pQ2jdnHKGGwGnBJXROClP26K+RvRQugA==}
@@ -10081,6 +10108,17 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
+
+  '@theshoregroup/settings-better-auth-plugin@0.2.1(@theshoregroup/settings-core@0.1.2(zod@4.4.3))(better-auth@1.7.2(@opentelemetry/api@1.9.0)(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.0)(rollup@4.62.3)(supports-color@10.2.2)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)))(drizzle-kit@1.0.0-rc.3)(drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(pg@8.22.0)(zod@4.4.3))(next@16.2.6(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.22.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.14)(vitest@3.2.7(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.33.0)(supports-color@10.2.2)(tsx@4.23.1)))(nanostores@1.4.1)(zod@4.4.3)':
+    dependencies:
+      '@theshoregroup/settings-core': 0.1.2(zod@4.4.3)
+      better-auth: 1.7.2(@opentelemetry/api@1.9.0)(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.0)(rollup@4.62.3)(supports-color@10.2.2)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)))(drizzle-kit@1.0.0-rc.3)(drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(pg@8.22.0)(zod@4.4.3))(next@16.2.6(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.22.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.14)(vitest@3.2.7(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.33.0)(supports-color@10.2.2)(tsx@4.23.1))
+      nanostores: 1.4.1
+      zod: 4.4.3
+
+  '@theshoregroup/settings-core@0.1.2(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
 
   '@theshoregroup/time@0.1.0':
     dependencies:

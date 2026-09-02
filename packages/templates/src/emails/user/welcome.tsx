@@ -14,7 +14,7 @@ import z from "zod";
 import { GeistFont, TailwindWrapper } from "../../components/tailwind";
 
 const userInviteEmailSchema = z.object({
-	key: z.literal("user-invite"),
+	key: z.literal("user-welcome"),
 	data: z.object({
 		verifyAccountUrl: z.url().optional(),
 		accountCreatedAt: z.date(),

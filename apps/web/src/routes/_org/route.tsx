@@ -1,22 +1,11 @@
 import {
+	GearSixIcon,
 	PlusIcon,
 	ProjectorScreenChartIcon,
-	ShieldStarIcon,
-	SignOutIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import {
-	Avatar,
-	AvatarBadge,
-	AvatarFallback,
-	AvatarImage,
-} from "@projection/ui/components/avatar";
+import { checkRoleForSuperuser } from "@projection/auth/organization/permissions";
+import { Avatar, AvatarFallback } from "@projection/ui/components/avatar";
 import { Button } from "@projection/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@projection/ui/components/dropdown-menu";
 import {
 	Sidebar,
 	SidebarContent,
@@ -32,7 +21,6 @@ import {
 	SidebarProvider,
 	SidebarRail,
 } from "@projection/ui/components/sidebar";
-import { Skeleton } from "@projection/ui/components/skeleton";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,42 +28,90 @@ import {
 	Link,
 	Outlet,
 	redirect,
-	useNavigate,
 } from "@tanstack/react-router";
 import { useMemo } from "react";
 import CreateProjectDialog from "@/components/create-project-dialog";
-import { getUser } from "@/functions/get-user";
+import { UserMenu } from "@/components/navigation/user-menu";
 import { authClient } from "@/lib/auth-client";
+import { getSsrHeaders } from "@/lib/auth-headers";
 import { getProjectsCollection } from "@/lib/collections";
+import { getOrgShortName } from "@/utils/auth";
 import { useTRPCClient } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_auth")({
-	component: AuthLayout,
-	beforeLoad: async () => {
-		const session = await getUser();
-		if (!session) {
+export const Route = createFileRoute("/_org")({
+	beforeLoad: async ({ context, location }) => {
+		const { session, user } = context;
+
+		if (!session || !user) {
 			throw redirect({
-				to: "/login",
+				to: "/auth/v1/sign-in",
+				search: { redirect: location.pathname + location.search },
 			});
 		}
-		return { session };
-	},
-	loader: async ({ context }) => {
-		if (!context.session) {
+
+		let activeOrganizationId = session.activeOrganizationId ?? undefined;
+
+		// Board-link auto-switch (spec v3): when headed to a project and the
+		// session is in the wrong organization (or none), try switching to
+		// the Project's org. Membership is verified by better-auth; if the
+		// switch fails the picker below is the fallback.
+		const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
+		if (projectMatch && projectMatch[1]) {
+			let projectOrganizationId: string | null | undefined;
+			try {
+				const result = await context.queryClient.ensureQueryData(
+					context.trpc.projects.byId.queryOptions({
+						id: projectMatch[1],
+					}),
+				);
+				projectOrganizationId = result.project.organizationId ?? null;
+			} catch {
+				// Project missing/inaccessible — the child route renders its
+				// own not-found state; treat as "no org to switch to" here.
+			}
+
+			if (
+				projectOrganizationId &&
+				projectOrganizationId !== activeOrganizationId
+			) {
+				const { data, error } = await authClient.organization.setActive({
+					organizationId: projectOrganizationId,
+					fetchOptions: { headers: getSsrHeaders() },
+				});
+				if (!error && data) {
+					activeOrganizationId = data.id;
+				}
+			}
+		}
+
+		if (!activeOrganizationId) {
 			throw redirect({
-				to: "/login",
+				to: "/auth/v1/organizations",
+				search: { redirect: location.pathname + location.search },
 			});
 		}
+
+		return {
+			session: {
+				...session,
+				activeOrganizationId: activeOrganizationId,
+			},
+			user,
+		};
 	},
+	component: OrgLayout,
 });
 
-function AuthLayout() {
+function OrgLayout() {
 	const queryClient = useQueryClient();
 	const trpcClient = useTRPCClient();
 	const projects = useMemo(
 		() => getProjectsCollection(queryClient, trpcClient),
 		[queryClient, trpcClient],
 	);
+	const { data: activeOrganization } = authClient.useActiveOrganization();
+	const { data: activeMember } = authClient.useActiveMemberRole();
+	const isOrgSuperuser = checkRoleForSuperuser(activeMember?.role);
 
 	const { data: mine } = useLiveQuery(
 		(q) =>
@@ -102,15 +138,26 @@ function AuthLayout() {
 						<SidebarMenuItem>
 							<SidebarMenuButton
 								className="font-medium text-lg"
-								render={<Link to="/" preload={false} />}
+								render={<Link to="/dashboard" preload={false} />}
 								size={"lg"}
 							>
 								<Avatar className="rounded-sm after:rounded-sm after:border-primary-foreground">
 									<AvatarFallback className="rounded-sm bg-primary text-primary-foreground">
-										<ProjectorScreenChartIcon />
+										{activeOrganization ? (
+											getOrgShortName(activeOrganization.name)
+										) : (
+											<ProjectorScreenChartIcon />
+										)}
 									</AvatarFallback>
 								</Avatar>
-								Projection
+								<span className="flex flex-col">
+									Projection
+									{activeOrganization && (
+										<span className="font-normal text-muted-foreground text-xs">
+											{activeOrganization.name}
+										</span>
+									)}
+								</span>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					</SidebarMenu>
@@ -118,9 +165,11 @@ function AuthLayout() {
 				<SidebarContent>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<SidebarMenuButton>
+							<SidebarMenuButton
+								render={<Link to="/dashboard" preload={false} />}
+							>
 								<ProjectorScreenChartIcon />
-								<span>My Projects</span>
+								<span>Dashboard</span>
 							</SidebarMenuButton>
 
 							<CreateProjectDialog
@@ -172,11 +221,22 @@ function AuthLayout() {
 								))}
 							</SidebarMenuSub>
 						)}
+
+						{isOrgSuperuser && (
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									render={<Link to="/settings" preload={false} />}
+								>
+									<GearSixIcon />
+									<span>Settings</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						)}
 					</SidebarMenu>
 				</SidebarContent>
 				<SidebarFooter>
 					<SidebarMenu>
-						<UserButton />
+						<UserMenu />
 					</SidebarMenu>
 				</SidebarFooter>
 
@@ -187,81 +247,5 @@ function AuthLayout() {
 				<Outlet />
 			</main>
 		</SidebarProvider>
-	);
-}
-
-function UserButton() {
-	const sessionQry = authClient.useSession();
-	const navigate = useNavigate();
-
-	if (sessionQry.isPending) {
-		return (
-			<SidebarMenuItem>
-				<SidebarMenuButton disabled>
-					<Skeleton />
-				</SidebarMenuButton>
-			</SidebarMenuItem>
-		);
-	}
-
-	if (!sessionQry.data) {
-		console.error("Failed to load session information");
-
-		return null;
-	}
-
-	const { user } = sessionQry.data;
-
-	const isSuperuser = user.role === "admin";
-
-	return (
-		<DropdownMenu>
-			<SidebarMenuItem>
-				<DropdownMenuTrigger render={<SidebarMenuButton />}>
-					<Avatar>
-						{user.image && <AvatarImage src={user.image} />}
-						<AvatarFallback>
-							{user.name
-								.split(" ")
-								.map((v) => v.charAt(0))
-								.join("")}
-						</AvatarFallback>
-						{isSuperuser && (
-							<AvatarBadge>
-								<ShieldStarIcon />
-							</AvatarBadge>
-						)}
-					</Avatar>
-					<div>
-						<div className="font-medium">{user.name}</div>
-						<div className="text-muted-foreground text-xs">{user.email}</div>
-					</div>
-				</DropdownMenuTrigger>
-			</SidebarMenuItem>
-
-			<DropdownMenuContent>
-				{isSuperuser && (
-					<DropdownMenuItem render={<Link to={"/admin"} preload={false} />}>
-						<ShieldStarIcon /> User Management
-					</DropdownMenuItem>
-				)}
-				<DropdownMenuItem
-					variant="destructive"
-					onClick={() =>
-						authClient.signOut({
-							fetchOptions: {
-								onSuccess: () => {
-									navigate({
-										to: "/",
-									});
-								},
-							},
-						})
-					}
-				>
-					<SignOutIcon /> Sign Out
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
 	);
 }

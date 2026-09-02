@@ -1,5 +1,6 @@
 import { env } from "@projection/env/server";
 import ProjectInviteEmail from "@projection/templates/email/project/invite";
+import UserInviteEmail from "@projection/templates/email/user/invite";
 import UserWelcomeEmail from "@projection/templates/email/user/welcome";
 import { render, toPlainText } from "@react-email/render";
 
@@ -45,6 +46,7 @@ function registerEmail<TData>(component: EmailComponent<TData>): TemplateEntry {
 const emailRegistry = [
 	registerEmail(UserWelcomeEmail),
 	registerEmail(ProjectInviteEmail),
+	registerEmail(UserInviteEmail),
 ];
 
 const emailTemplatesByKey = Object.fromEntries(
@@ -69,6 +71,7 @@ const emailTaskSchema = z.object({
 	props: z.discriminatedUnion("key", [
 		UserWelcomeEmail.schema,
 		ProjectInviteEmail.schema,
+		UserInviteEmail.schema,
 	]),
 });
 

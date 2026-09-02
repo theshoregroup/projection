@@ -4,16 +4,15 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { getUser } from "@/functions/get-user";
 import { authClient } from "@/lib/auth-client";
 
-export const Route = createFileRoute("/_auth/admin")({
-	beforeLoad: async () => {
-		const session = await getUser();
-		if (session?.user?.role !== "admin") {
-			throw redirect({ to: "/" });
+export const Route = createFileRoute("/_org/admin")({
+	beforeLoad: async ({ context }) => {
+		// Instance admin (user plugin) — the _org layout already requires a
+		// signed-in user with an active organization.
+		if (context.user?.role !== "admin") {
+			throw redirect({ to: "/dashboard" });
 		}
-		return { session };
 	},
 	component: AdminPage,
 });
@@ -28,7 +27,9 @@ interface AdminUserRow {
 
 /** Admin = user management only (ADR 0004) — no project access lives here. */
 function AdminPage() {
-	const { session } = Route.useRouteContext();
+	const { user } = Route.useRouteContext({
+		select: ({ user }) => ({ user }),
+	});
 	const [users, setUsers] = useState<AdminUserRow[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -60,7 +61,7 @@ function AdminPage() {
 		}
 	};
 
-	const me = session.user.id;
+	const me = user?.id;
 
 	return (
 		<div className="mx-auto w-full max-w-4xl space-y-6 p-6">

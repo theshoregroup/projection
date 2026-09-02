@@ -30,6 +30,7 @@
 		"@trpc/tanstack-react-query": "^11.18.0",
 		"better-auth": "catalog:",
 		"clsx": "^2.1.1",
+	"date-fns": "^4.4.0",
 		"dotenv": "catalog:",
 		"evlog": "^2.22.4",
 		"next-themes": "catalog:",

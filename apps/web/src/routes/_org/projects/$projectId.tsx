@@ -15,7 +15,7 @@ import { NotFoundComponent } from "@/components/ui/not-found";
 import { getLinesCollection } from "@/lib/collections";
 import { useTRPC, useTRPCClient } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_auth/projects/$projectId")({
+export const Route = createFileRoute("/_org/projects/$projectId")({
 	component: ProjectPage,
 	loader: async ({ params, context }) =>
 		await context.queryClient.ensureQueryData(

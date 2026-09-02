@@ -15,9 +15,12 @@
 		"check:types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@projection/env": "workspace:*",
 		"@better-auth/drizzle-adapter": "1.7.2",
 		"@projection/db": "workspace:*",
+		"@projection/env": "workspace:*",
+		"@projection/tasks": "workspace:*",
+		"@theshoregroup/settings-better-auth-plugin": "^0.2.1",
+		"@theshoregroup/settings-core": "0.1.2",
 		"better-auth": "catalog:",
 		"dotenv": "catalog:",
 		"drizzle-orm": "catalog:",

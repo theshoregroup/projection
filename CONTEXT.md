@@ -57,5 +57,5 @@ A user with instance-wide user-management powers (list, ban, delete users, grant
 _Avoid_: superuser, owner
 
 **Organization**:
-The single company workspace ("The Shore Group"). Existing users were moved into it by a one-off backfill; new users join only via invitation (deferred) — so a freshly signed-in user may temporarily have none. Users cannot create or leave it, and it grants no access to Project contents, which remain per-user Owner/Editor. Each Project records the Organization of its Owner (or none).
+The single company workspace ("The Shore Group"). Existing users were moved into it by a one-off backfill; new users join only via invitation (ADR 0009). From ADR 0009 on, an active Organization is **required** to use the app — a freshly signed-in, uninvited user is walled at the organization picker. Users cannot create or leave it, and it grants no access to Project contents, which remain per-user Owner/Editor. Each Project records the Organization of its Owner (or none).
 _Avoid_: tenant, workspace, team

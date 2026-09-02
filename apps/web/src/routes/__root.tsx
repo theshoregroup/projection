@@ -1,5 +1,6 @@
 import { SmileyXEyesIcon } from "@phosphor-icons/react";
 import type { AppRouter } from "@projection/api/routers/index";
+import { auth, type Session } from "@projection/auth";
 import { Button } from "@projection/ui/components/button";
 import {
 	Empty,
@@ -17,17 +18,29 @@ import {
 	Link,
 	Outlet,
 	Scripts,
+	useRouter,
 } from "@tanstack/react-router";
-import { createMiddleware } from "@tanstack/react-start";
+import { createMiddleware, createServerFn } from "@tanstack/react-start";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { evlogErrorHandler } from "evlog/nitro/v3";
-import { lazy } from "react";
+import { lazy, useEffect } from "react";
 import { NotFoundComponent } from "@/components/ui/not-found";
+import { authClient } from "@/lib/auth-client";
 import appCss from "../index.css?url";
 export interface RouterAppContext {
 	trpc: TRPCOptionsProxy<AppRouter>;
 	queryClient: QueryClient;
+	session: Session["session"] | undefined;
+	user: Session["user"] | undefined;
 }
+
+const getSession = createServerFn({ method: "GET" }).handler(async () => {
+	const { getRequestHeaders } = await import("@tanstack/react-start/server");
+
+	const headers = getRequestHeaders();
+
+	return auth.api.getSession({ headers });
+});
 
 const DevtoolsPanel = import.meta.env.DEV
 	? lazy(() =>
@@ -135,6 +148,18 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
 	component: RootDocument,
 
+	beforeLoad: async () => {
+		// Fetched for every route so children can gate synchronously on
+		// session/user in beforeLoad (openrams pattern). The client-side
+		// AuthGate below re-routes when the session changes.
+		const data = await getSession();
+
+		return {
+			session: data?.session ?? undefined,
+			user: data?.user ?? undefined,
+		};
+	},
+
 	errorComponent: ({ error, reset }) => {
 		return (
 			<div className="grid h-full w-full place-items-center bg-muted p-6">
@@ -185,8 +210,23 @@ function RootDocument() {
 				</div>
 				<Toaster richColors />
 				{DevtoolsPanel && <DevtoolsPanel />}
+				<AuthGate />
 				<Scripts />
 			</body>
 		</html>
 	);
+}
+
+// Re-routes the whole app whenever the client session changes (sign-in /
+// sign-out / org switch) so server-gated routes pick up the new state.
+function AuthGate() {
+	const session = authClient.useSession();
+	const router = useRouter();
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: this is the correct way to invalidate the router
+	useEffect(() => {
+		router.invalidate();
+	}, [session]);
+
+	return null;
 }

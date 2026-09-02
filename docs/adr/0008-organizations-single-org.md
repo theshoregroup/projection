@@ -13,10 +13,10 @@ The auth config deliberately does **not** assign users to the org (no auto-join 
 3. Points every session without an active org at the org, so live sessions become org-aware without a re-login.
 4. Stamps every Project with the org.
 
-Consequence: a user who signs in *after* the backfill has run is **not** in the org until the (deferred) invitation flow lands; their Projects are created with `organizationId: null` meanwhile. The client registers `organizationClient()`; no visible UI ships with this.
+Consequence: a user who signs in *after* the backfill has run is **not** in the org until they accept an invitation. (Originally the invitation flow was deferred; it now ships per [ADR 0009](./0009-auth-flow-and-org-provisioning.md), which requires an organization to use the app — a freshly signed-in, uninvited user is walled at the organization picker.) The client registers `organizationClient()`; the picker / dashboard / settings UI ships with ADR 0009.
 
 ## Consequences
 
 - `packages/db/src/schema/auth.ts` gains `organization` / `member` / `invitation` tables and `session.active_organization_id`; `project` gains a nullable `organization_id` (FK `ON DELETE SET NULL`).
 - `project.create` stamps the Owner's org by **reading** their `member` row (null when they have none); `project.duplicate` copies the source's value. Org membership still changes **nothing** about Project access — Owner/Editor grants are untouched (CONTEXT.md) and admins still see no project contents.
-- **Deferred:** the plugin's standard invitation flow (`sendInvitationEmail` via trigger.dev + accept page) becomes the *only* way new users join the org — this is now required, not just desirable, since the config no longer auto-joins.
+- **Shipped in ADR 0009** (originally deferred here): the plugin's standard invitation flow (`sendInvitationEmail` via trigger.dev + accept page) is the *only* way new users join the org — this became required, not just desirable, since the config no longer auto-joins.
