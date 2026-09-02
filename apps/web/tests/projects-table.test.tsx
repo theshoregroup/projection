@@ -85,6 +85,7 @@ function makeProject(partial: Partial<ProjectsRow>): ProjectsRow {
 		description: null,
 		seedStart: "2026-03-01",
 		seedEnd: "2026-04-01",
+		organizationId: "o1",
 		shareToken: null,
 		allowVisitorsToExport: false,
 		createdAt: new Date("2026-01-01T00:00:00.000Z"),

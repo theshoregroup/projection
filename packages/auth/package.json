@@ -16,7 +16,7 @@
 	},
 	"dependencies": {
 		"@projection/env": "workspace:*",
-		"@better-auth/drizzle-adapter": "1.7.0-rc.2",
+		"@better-auth/drizzle-adapter": "1.7.2",
 		"@projection/db": "workspace:*",
 		"better-auth": "catalog:",
 		"dotenv": "catalog:",
