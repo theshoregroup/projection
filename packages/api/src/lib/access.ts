@@ -1,8 +1,26 @@
 import type { DrizzleDbType } from "@projection/db";
 import { line, project, projectEditor } from "@projection/db/schema/app";
+import { member } from "@projection/db/schema/auth";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { canManage, type ProjectRole, roleFor } from "../domain/permissions";
+
+/**
+ * The organization the user belongs to, or null if they are a member of
+ * none (ADR 0008 — the auth config never assigns orgs, so this is a plain
+ * read of `member`; a user without membership simply has no org).
+ */
+export async function findUserOrganizationId(
+	db: DrizzleDbType,
+	userId: string,
+) {
+	const [found] = await db
+		.select({ organizationId: member.organizationId })
+		.from(member)
+		.where(eq(member.userId, userId))
+		.limit(1);
+	return found?.organizationId ?? null;
+}
 
 /**
  * Loads a Project and the caller's role on it. Invisible projects are

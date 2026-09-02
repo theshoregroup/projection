@@ -55,3 +55,7 @@ _Avoid_: public link, view-only link
 **Admin**:
 A user with instance-wide user-management powers (list, ban, delete users, grant Admin). Has no special access to Project contents. Bootstrapped via the ADMIN_EMAILS environment variable.
 _Avoid_: superuser, owner
+
+**Organization**:
+The single company workspace ("The Shore Group"). Existing users were moved into it by a one-off backfill; new users join only via invitation (deferred) — so a freshly signed-in user may temporarily have none. Users cannot create or leave it, and it grants no access to Project contents, which remain per-user Owner/Editor. Each Project records the Organization of its Owner (or none).
+_Avoid_: tenant, workspace, team

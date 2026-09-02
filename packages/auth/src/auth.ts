@@ -5,7 +5,7 @@ import * as authSchema from "@projection/db/schema/auth";
 import { user as userTable } from "@projection/db/schema/auth";
 import { env } from "@projection/env/server";
 import { betterAuth } from "better-auth";
-import { admin } from "better-auth/plugins";
+import { admin, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
@@ -53,8 +53,20 @@ export function createAuth() {
 		},
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
+		// The single company organization (ADR 0008). This config only shapes
+		// the plugin — it never assigns users to the org. Membership is
+		// granted exclusively by the one-off backfill (and later the invite
+		// flow); sign-in itself is untouched.
 		// tanstackStartCookies must stay last in the plugins array
-		plugins: [admin(), tanstackStartCookies()],
+		plugins: [
+			organization({
+				allowUserToCreateOrganization: false,
+				disableOrganizationDeletion: true,
+				membershipLimit: 10_000,
+			}),
+			admin(),
+			tanstackStartCookies(),
+		],
 	});
 }
 

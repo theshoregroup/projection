@@ -7,7 +7,11 @@ import { z } from "zod";
 import { duplicateLines } from "../domain/duplicate";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { protectedProcedure, router } from "../index";
-import { assertOwner, loadProjectForUser } from "../lib/access";
+import {
+	assertOwner,
+	findUserOrganizationId,
+	loadProjectForUser,
+} from "../lib/access";
 import {
 	PDF_PAGE_SIZES,
 	type PdfPageSize,
@@ -24,10 +28,17 @@ export const projectsRouter = router({
 	create: protectedProcedure
 		.input(projectCreateSchema)
 		.mutation(async ({ ctx, input }) => {
+			// Projects carry their Owner's org (ADR 0008); null while the Owner
+			// has no membership
+			const organizationId = await findUserOrganizationId(
+				ctx.db,
+				ctx.session.user.id,
+			);
 			const [created] = await ctx.db
 				.insert(project)
 				.values({
 					ownerId: ctx.session.user.id,
+					organizationId,
 					name: input.name,
 					description: input.description ?? null,
 					seedStart: input.seedStart,
@@ -113,6 +124,7 @@ export const projectsRouter = router({
 					.insert(project)
 					.values({
 						ownerId: ctx.session.user.id,
+						organizationId: access.project.organizationId,
 						name: `${access.project.name} (copy)`,
 						description: access.project.description,
 						seedStart: access.project.seedStart,
