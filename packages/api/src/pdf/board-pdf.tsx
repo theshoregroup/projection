@@ -63,7 +63,8 @@ export interface BoardPdfProps {
 	pageSize: PdfPageSize;
 	/** Render date shown in the footer; injected for tests. Defaults to now. */
 	generatedAt?: Date;
-	/** If provided, the org logo is rendered in the top-right of each page. */
+	/** If provided, the org logo is rendered in the top-right corner of each
+	 * page, straddling the top/right margins. */
 	orgLogoUrl?: string;
 }
 
@@ -79,7 +80,6 @@ const PAGE_DIMENSIONS: Record<PdfPageSize, { width: number; height: number }> =
 		A0: { width: 2383.94, height: 3370.39 },
 	};
 
-const ORG_LOGO_SIZE = 28;
 const PAGE_MARGIN = 36;
 const TITLE_BLOCK_HEIGHT = 40;
 const FOOTER_HEIGHT = 24;
@@ -149,10 +149,9 @@ const styles = StyleSheet.create({
 	},
 	orgLogo: {
 		position: "absolute",
-		top: 0,
-		right: 0,
-		width: 140,
-		height: ORG_LOGO_SIZE,
+		top: 20,
+		right: 30,
+    height: 50,
 		objectFit: "contain" as const,
 	},
 	board: {
@@ -579,10 +578,13 @@ export function BoardPdfDocument({
 					orientation="landscape"
 					style={styles.page}
 				>
+					{/* Direct child of Page so it anchors to the page's top-right
+					 * corner and straddles the margins, not the content box. */}
+					{orgLogoUrl ? (
+						<Image style={styles.orgLogo} src={orgLogoUrl} />
+					) : null}
+
 					<View style={styles.titleBlock}>
-						{orgLogoUrl ? (
-							<Image style={styles.orgLogo} src={orgLogoUrl} />
-						) : null}
 						<Text style={styles.title}>{project.name}</Text>
 						{project.description ? (
 							<Text style={styles.description}>{project.description}</Text>
