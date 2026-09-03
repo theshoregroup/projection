@@ -3,8 +3,10 @@ import {
 	organizationAc,
 	organizationRoles,
 } from "@projection/auth/organization/permissions";
+import { registry } from "@projection/auth/settings/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
+import { settingsClient } from "@theshoregroup/settings-better-auth-plugin/client";
 import {
 	adminClient,
 	inferAdditionalFields,
@@ -35,6 +37,7 @@ export const authClient = createAuthClient({
 			roles: organizationRoles,
 			schema: inferOrgAdditionalFields<typeof auth>(),
 		}),
+		settingsClient({ registry }),
 		inferAdditionalFields<typeof auth>(),
 	],
 });
