@@ -3,12 +3,7 @@ import { Button } from "@projection/ui/components/button";
 import { Checkbox } from "@projection/ui/components/checkbox";
 import { Input } from "@projection/ui/components/input";
 import { Label } from "@projection/ui/components/label";
-import {
-	Popover,
-	PopoverPopup,
-	PopoverPortal,
-	PopoverPositioner,
-} from "@projection/ui/components/popover";
+import { Popover, PopoverContent } from "@projection/ui/components/popover";
 import { Textarea } from "@projection/ui/components/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -112,74 +107,71 @@ export default function BarPopover({
 				}
 			}}
 		>
-			<PopoverPortal>
-				<PopoverPositioner
-					anchor={anchor}
-					side="bottom"
-					align="center"
-					sideOffset={8}
-				>
-					<PopoverPopup className="w-64 space-y-3 p-3 text-sm">
-						<div className="flex items-center gap-2">
-							<Checkbox
-								id="bar-milestone"
-								checked={line.isMilestone}
-								onCheckedChange={(checked) =>
-									onMilestoneChange(checked === true)
-								}
-							/>
-							<Label htmlFor="bar-milestone">Milestone (single day)</Label>
-						</div>
-						<div className="grid grid-cols-2 gap-3">
-							<div className="space-y-1.5">
-								<Label htmlFor="bar-start">
-									{line.isMilestone ? "Date" : "Start"}
-								</Label>
-								<Input
-									id="bar-start"
-									type="date"
-									value={line.startDate}
-									onChange={(event) => onStartChange(event.target.value)}
-								/>
-							</div>
-							{!line.isMilestone && (
-								<div className="space-y-1.5">
-									<Label htmlFor="bar-end">End</Label>
-									<Input
-										id="bar-end"
-										type="date"
-										value={line.endDate}
-										onChange={(event) => onEndChange(event.target.value)}
-									/>
-								</div>
-							)}
-						</div>
+			<PopoverContent
+				anchor={anchor}
+				side="bottom"
+				align="center"
+				sideOffset={8}
+				className="w-64 space-y-3 p-3 text-sm"
+			>
+				<div className="flex items-center gap-2">
+					<Checkbox
+						id="bar-milestone"
+						checked={line.isMilestone}
+						onCheckedChange={(checked) =>
+							onMilestoneChange(checked === true)
+						}
+					/>
+					<Label htmlFor="bar-milestone">Milestone (single day)</Label>
+				</div>
+				<div className="grid grid-cols-2 gap-3">
+					<div className="space-y-1.5">
+						<Label htmlFor="bar-start">
+							{line.isMilestone ? "Date" : "Start"}
+						</Label>
+						<Input
+							id="bar-start"
+							type="date"
+							value={line.startDate}
+							onChange={(event) => onStartChange(event.target.value)}
+						/>
+					</div>
+					{!line.isMilestone && (
 						<div className="space-y-1.5">
-							<Label htmlFor="bar-note">Note (shows on the bar)</Label>
-							<Textarea
-								id="bar-note"
-								value={note}
-								onChange={(event) => setNote(event.target.value)}
-								onBlur={commitNote}
-								rows={2}
+							<Label htmlFor="bar-end">End</Label>
+							<Input
+								id="bar-end"
+								type="date"
+								value={line.endDate}
+								onChange={(event) => onEndChange(event.target.value)}
 							/>
 						</div>
-						<div className="border-border border-t pt-3">
-							<Button
-								type="button"
-								variant={confirmDelete ? "destructive" : "ghost"}
-								size="sm"
-								className="w-full"
-								onClick={() => void onDelete()}
-							>
-								{confirmDelete
-									? "Click again to delete this line"
-									: "Delete line"}
-							</Button>
-						</div>
-					</PopoverPopup>
-				</PopoverPositioner>
-			</PopoverPortal>
+					)}
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="bar-note">Note (shows on the bar)</Label>
+					<Textarea
+						id="bar-note"
+						value={note}
+						onChange={(event) => setNote(event.target.value)}
+						onBlur={commitNote}
+						rows={2}
+					/>
+				</div>
+				<div className="border-border border-t pt-3">
+					<Button
+						type="button"
+						variant={confirmDelete ? "destructive" : "ghost"}
+						size="sm"
+						className="w-full"
+						onClick={() => void onDelete()}
+					>
+						{confirmDelete
+							? "Click again to delete this line"
+							: "Delete line"}
+					</Button>
+				</div>
+			</PopoverContent>
 		</Popover>
 	);
 }
