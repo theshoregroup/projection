@@ -5,6 +5,7 @@
 import {
 	Document,
 	G,
+	Image,
 	Page,
 	Path,
 	Line as PdfLine,
@@ -62,6 +63,8 @@ export interface BoardPdfProps {
 	pageSize: PdfPageSize;
 	/** Render date shown in the footer; injected for tests. Defaults to now. */
 	generatedAt?: Date;
+	/** If provided, the org logo is rendered in the top-right of each page. */
+	orgLogoUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +79,7 @@ const PAGE_DIMENSIONS: Record<PdfPageSize, { width: number; height: number }> =
 		A0: { width: 2383.94, height: 3370.39 },
 	};
 
+const ORG_LOGO_HEIGHT = 28;
 const PAGE_MARGIN = 36;
 const TITLE_BLOCK_HEIGHT = 40;
 const FOOTER_HEIGHT = 24;
@@ -131,8 +135,12 @@ const styles = StyleSheet.create({
 	},
 	titleBlock: {
 		height: TITLE_BLOCK_HEIGHT,
-		justifyContent: "flex-end",
+		flexDirection: "row",
+		alignItems: "flex-end",
 		paddingBottom: 8,
+	},
+	titleText: {
+		flex: 1,
 	},
 	title: {
 		fontSize: 16,
@@ -142,6 +150,12 @@ const styles = StyleSheet.create({
 		fontSize: 9,
 		color: COLOR_MUTED,
 		marginTop: 2,
+	},
+	orgLogo: {
+		height: ORG_LOGO_HEIGHT,
+		maxWidth: 200,
+		marginBottom: 4,
+		marginLeft: 16,
 	},
 	board: {
 		flexDirection: "row",
@@ -546,6 +560,7 @@ export function BoardPdfDocument({
 	lines,
 	pageSize,
 	generatedAt = new Date(),
+	orgLogoUrl,
 }: BoardPdfProps) {
 	const window = deriveWindow(lines, project);
 	const rows = buildRows(lines);
@@ -567,9 +582,14 @@ export function BoardPdfDocument({
 					style={styles.page}
 				>
 					<View style={styles.titleBlock}>
-						<Text style={styles.title}>{project.name}</Text>
-						{project.description ? (
-							<Text style={styles.description}>{project.description}</Text>
+						<View style={styles.titleText}>
+							<Text style={styles.title}>{project.name}</Text>
+							{project.description ? (
+								<Text style={styles.description}>{project.description}</Text>
+							) : null}
+						</View>
+						{orgLogoUrl ? (
+							<Image style={styles.orgLogo} src={orgLogoUrl} />
 						) : null}
 					</View>
 
@@ -652,8 +672,14 @@ export async function renderBoardPdf(
 	project: PdfProject,
 	lines: PdfBoardLine[],
 	pageSize: PdfPageSize,
+	options?: { orgLogoUrl?: string },
 ): Promise<{ filename: string; data: Uint8Array }> {
-	const element = createElement(BoardPdfDocument, { project, lines, pageSize });
+	const element = createElement(BoardPdfDocument, {
+		project,
+		lines,
+		pageSize,
+		orgLogoUrl: options?.orgLogoUrl,
+	});
 	const buffer = await renderToBuffer(
 		element as unknown as Parameters<typeof renderToBuffer>[0],
 	);

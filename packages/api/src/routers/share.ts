@@ -5,6 +5,7 @@ import { z } from "zod";
 import { deriveWindow } from "../domain/dates";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { publicProcedure, router } from "../index";
+import { resolveOrgLogo } from "../lib/org-logo";
 import {
 	PDF_PAGE_SIZES,
 	type PdfPageSize,
@@ -82,6 +83,9 @@ export const shareRouter = router({
 					.where(eq(line.projectId, found.id))
 					.orderBy(asc(line.sortOrder)),
 			);
-			return renderBoardPdf(found, lines, input.pageSize as PdfPageSize);
+			const orgLogoUrl = await resolveOrgLogo(ctx.db, found.organizationId);
+			return renderBoardPdf(found, lines, input.pageSize as PdfPageSize, {
+				orgLogoUrl,
+			});
 		}),
 });

@@ -12,6 +12,7 @@ import {
 	findUserOrganizationId,
 	loadProjectForUser,
 } from "../lib/access";
+import { resolveOrgLogo } from "../lib/org-logo";
 import {
 	PDF_PAGE_SIZES,
 	type PdfPageSize,
@@ -196,10 +197,15 @@ export const projectsRouter = router({
 					.where(eq(line.projectId, input.id))
 					.orderBy(asc(line.sortOrder)),
 			);
+			const orgLogoUrl = await resolveOrgLogo(
+				ctx.db,
+				access.project.organizationId,
+			);
 			return renderBoardPdf(
 				access.project,
 				lines,
 				input.pageSize as PdfPageSize,
+				{ orgLogoUrl },
 			);
 		}),
 
