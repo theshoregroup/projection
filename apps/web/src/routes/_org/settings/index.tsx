@@ -1,4 +1,4 @@
-import { FloppyDiskIcon } from "@phosphor-icons/react/dist/ssr";
+import { ImagesIcon } from "@phosphor-icons/react/dist/ssr";
 import { registry } from "@projection/auth/settings/registry";
 import {
 	Avatar,
@@ -21,6 +21,14 @@ import {
 	FieldTitle,
 } from "@projection/ui/components/field";
 import { Input } from "@projection/ui/components/input";
+import {
+	Popover,
+	PopoverContent,
+	PopoverDescription,
+	PopoverHeader,
+	PopoverTitle,
+	PopoverTrigger,
+} from "@projection/ui/components/popover";
 import { Switch } from "@projection/ui/components/switch";
 import { useForm, useSelector } from "@tanstack/react-form";
 import {
@@ -33,9 +41,11 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod";
+import { ImageToUri } from "@/components/image-to-uri";
 import { authClient } from "@/lib/auth-client";
 import { getSsrHeaders } from "@/lib/auth-headers";
 import { getOrgShortName } from "@/utils/auth";
+import { useState } from "react";
 
 const currentOrganizationQry = (orgId: string) =>
 	queryOptions({
@@ -76,35 +86,6 @@ function useOrgSetting(key: keyof typeof registry & string) {
 	return item?.value ?? registry[key].default;
 }
 
-/** Fetch an image URL and convert it to a PNG data URI using a canvas.
- *  This ensures the stored logo is always a format react-pdf can render
- *  (JPEG/PNG), even when the source is WebP, AVIF, etc. */
-async function urlToDataUri(url: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const img = new Image();
-		img.crossOrigin = "anonymous";
-		img.onload = () => {
-			const canvas = document.createElement("canvas");
-			canvas.width = img.naturalWidth;
-			canvas.height = img.naturalHeight;
-			const ctx = canvas.getContext("2d");
-			if (!ctx) {
-				reject(new Error("Could not get canvas context"));
-				return;
-			}
-			ctx.drawImage(img, 0, 0);
-			resolve(canvas.toDataURL("image/png"));
-		};
-		img.onerror = () => reject(new Error("Failed to load image"));
-		img.src = url;
-	});
-}
-
-/** Check if a string is a data URI (already converted). */
-function isDataUri(value: string | undefined | null): boolean {
-	return !!value && value.startsWith("data:");
-}
-
 function RouteComponent() {
 	const { activeOrganizationId } = Route.useRouteContext({
 		select: ({ activeOrganizationId }) => ({ activeOrganizationId }),
@@ -134,22 +115,26 @@ function RouteComponent() {
 	});
 
 	const orgUpdateForm = useForm({
-		defaultValues: { name: organization.name, logo: organization.logo },
+		defaultValues: {
+			name: organization.name,
+			logo: organization.logo ?? undefined,
+		},
 		validators: {
 			onSubmit: z.object({
 				name: z.string().min(3),
-				// Accept data URIs (converted logos) or undefined
 				logo: z.string().or(z.undefined()),
 			}),
 		},
-		onSubmit: async ({ value }) =>
-			authClient.organization.update(
+		onSubmit: async ({ value }) => {
+			await authClient.organization.update(
 				{ data: value, organizationId: activeOrganizationId },
 				{
-					onSuccess: async () =>
-						queryClient.invalidateQueries(
+					onSuccess: async () => {
+						await queryClient.invalidateQueries(
 							currentOrganizationQry(activeOrganizationId),
-						),
+						);
+						toast.success("Organization updated");
+					},
 					onError: ({ error }) => {
 						toast.error(
 							`There was an error updating the organization: ${error.name}`,
@@ -157,7 +142,8 @@ function RouteComponent() {
 						);
 					},
 				},
-			),
+			);
+		},
 	});
 
 	const storedName = useSelector(orgUpdateForm.store, (s) => s.values.name);
@@ -170,7 +156,9 @@ function RouteComponent() {
 			}),
 		},
 		onSubmit: async () => {},
-	});
+  });
+
+	const [logoChangePopoverOpen, setLogoChangePopoverOpen] = useState(false);
 
 	return (
 		<div className="@container/org-form">
@@ -185,73 +173,68 @@ function RouteComponent() {
 						}}
 						className="space-y-4"
 					>
-						<CardContent>
+						<CardContent className="space-y-4">
 							<orgUpdateForm.Field name="logo">
 								{(field) => {
 									const isInvalid =
 										field.state.meta.isTouched && !field.state.meta.isValid;
-									// Show a blank input for data URIs so the user pastes a fresh URL;
-									// otherwise show the current URL value for editing.
-									const displayValue = isDataUri(field.state.value)
-										? ""
-										: (field.state.value ?? "");
-									const hasLogo = !!field.state.value;
 									return (
 										<Field orientation={"horizontal"}>
+											<FieldContent>
+												<FieldTitle>Organization Logo</FieldTitle>
+												<FieldDescription>
+													Square Image between 200px and 500px recommended
+												</FieldDescription>
+
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+
+												<Popover open={logoChangePopoverOpen} onOpenChange={setLogoChangePopoverOpen}>
+													<PopoverTrigger
+														className="w-fit"
+														render={
+															<Button
+																size="sm"
+																variant="secondary"
+																type="button"
+															/>
+														}
+													>
+														<ImagesIcon />
+														Change
+													</PopoverTrigger>
+
+													<PopoverContent>
+														<PopoverHeader>
+															<PopoverTitle>Upload a new image</PopoverTitle>
+															<PopoverDescription>
+																Paste a link or upload an image from your local
+																compter. Your image will be converted
+																automatically.
+															</PopoverDescription>
+														</PopoverHeader>
+
+														<ImageToUri
+															onChange={(e) => {
+                                field.handleChange(e);
+																setLogoChangePopoverOpen(false)
+															}}
+														/>
+													</PopoverContent>
+												</Popover>
+											</FieldContent>
 											<Avatar className="size-20 rounded-lg after:rounded-lg">
 												<AvatarFallback className="rounded-lg">
 													{getOrgShortName(storedName)}
 												</AvatarFallback>
-												{hasLogo && (
+												{field.state.value && (
 													<AvatarImage
 														className="rounded-lg"
 														src={field.state.value ?? undefined}
 													/>
 												)}
 											</Avatar>
-											<FieldContent>
-												<FieldTitle>Organization Logo</FieldTitle>
-												<Input
-													id={field.name}
-													value={displayValue}
-													placeholder="https://example.com/logo.png"
-													onChange={(e) =>
-														field.handleChange(e.target.value || undefined)
-													}
-													onBlur={async () => {
-														field.handleBlur();
-														const url = field.state.value;
-														// If the user just entered a URL (not a data URI),
-														// convert it so we store a format react-pdf can render
-														if (url && !isDataUri(url)) {
-															try {
-																const dataUri = await urlToDataUri(url);
-																field.handleChange(dataUri);
-															} catch {
-																toast.error("Could not load image", {
-																	description:
-																		"Make sure the URL points to a valid, publicly accessible image.",
-																});
-															}
-														}
-													}}
-													autoCorrect="off"
-													autoFocus={false}
-												/>
-												<FieldDescription>
-													Paste a URL to a logo image — it will be converted
-													automatically. Use a square image, approx 250-500px.
-												</FieldDescription>
-												{isInvalid && (
-													<FieldError
-														errors={
-															field.state.meta.errors as Array<
-																{ message?: string | undefined } | undefined
-															>
-														}
-													/>
-												)}
-											</FieldContent>
 										</Field>
 									);
 								}}
@@ -294,11 +277,15 @@ function RouteComponent() {
 						</CardContent>
 						<CardFooter>
 							<Button
+								type="submit"
 								variant={orgUpdateForm.state.isDirty ? "default" : "outline"}
-								disabled={!orgUpdateForm.state.isDirty}
+								disabled={
+									orgUpdateForm.state.isSubmitting ||
+									!orgUpdateForm.state.isDirty
+								}
 							>
-								<FloppyDiskIcon />
-								Update
+								<ImagesIcon />
+								{orgUpdateForm.state.isSubmitting ? "Saving…" : "Update"}
 							</Button>
 						</CardFooter>
 					</form>
