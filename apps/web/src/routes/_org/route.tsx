@@ -4,7 +4,7 @@ import {
 	ProjectorScreenChartIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { checkRoleForSuperuser } from "@projection/auth/organization/permissions";
-import { Avatar, AvatarFallback } from "@projection/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@projection/ui/components/avatar";
 import { Button } from "@projection/ui/components/button";
 import {
 	Sidebar,
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/_org")({
 		// the Project's org. Membership is verified by better-auth; if the
 		// switch fails the picker below is the fallback.
 		const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
-		if (projectMatch && projectMatch[1]) {
+		if (projectMatch?.[1]) {
 			let projectOrganizationId: string | null | undefined;
 			try {
 				const result = await context.queryClient.ensureQueryData(
@@ -141,14 +141,15 @@ function OrgLayout() {
 								render={<Link to="/dashboard" preload={false} />}
 								size={"lg"}
 							>
-								<Avatar className="rounded-sm after:rounded-sm after:border-primary-foreground">
+								<Avatar className="rounded-sm after:rounded-lg after:border-primary-foreground">
 									<AvatarFallback className="rounded-sm bg-primary text-primary-foreground">
 										{activeOrganization ? (
 											getOrgShortName(activeOrganization.name)
 										) : (
 											<ProjectorScreenChartIcon />
 										)}
-									</AvatarFallback>
+                  </AvatarFallback>
+									{activeOrganization?.logo && <AvatarImage className="rounded-lg after:rounded-lg" src={activeOrganization.logo} />}
 								</Avatar>
 								<span className="flex flex-col">
 									Projection
