@@ -23,6 +23,7 @@
 		"@trpc/server": "catalog:",
 		"dotenv": "catalog:",
 		"drizzle-orm": "catalog:",
+		"sharp": "^0.35.4",
 		"superjson": "^2.2.6",
 		"zod": "catalog:"
 	},

@@ -79,7 +79,7 @@ const PAGE_DIMENSIONS: Record<PdfPageSize, { width: number; height: number }> =
 		A0: { width: 2383.94, height: 3370.39 },
 	};
 
-const ORG_LOGO_HEIGHT = 28;
+const ORG_LOGO_SIZE = 28;
 const PAGE_MARGIN = 36;
 const TITLE_BLOCK_HEIGHT = 40;
 const FOOTER_HEIGHT = 24;
@@ -135,12 +135,8 @@ const styles = StyleSheet.create({
 	},
 	titleBlock: {
 		height: TITLE_BLOCK_HEIGHT,
-		flexDirection: "row",
-		alignItems: "flex-end",
+		justifyContent: "flex-end",
 		paddingBottom: 8,
-	},
-	titleText: {
-		flex: 1,
 	},
 	title: {
 		fontSize: 16,
@@ -152,10 +148,12 @@ const styles = StyleSheet.create({
 		marginTop: 2,
 	},
 	orgLogo: {
-		height: ORG_LOGO_HEIGHT,
-		maxWidth: 200,
-		marginBottom: 4,
-		marginLeft: 16,
+		position: "absolute",
+		top: 0,
+		right: 0,
+		width: 140,
+		height: ORG_LOGO_SIZE,
+		objectFit: "contain" as const,
 	},
 	board: {
 		flexDirection: "row",
@@ -582,14 +580,12 @@ export function BoardPdfDocument({
 					style={styles.page}
 				>
 					<View style={styles.titleBlock}>
-						<View style={styles.titleText}>
-							<Text style={styles.title}>{project.name}</Text>
-							{project.description ? (
-								<Text style={styles.description}>{project.description}</Text>
-							) : null}
-						</View>
 						{orgLogoUrl ? (
 							<Image style={styles.orgLogo} src={orgLogoUrl} />
+						) : null}
+						<Text style={styles.title}>{project.name}</Text>
+						{project.description ? (
+							<Text style={styles.description}>{project.description}</Text>
 						) : null}
 					</View>
 
