@@ -21,7 +21,5 @@ export default defineConfig(({ command }) => ({
 	// Bundle all SSR deps into the server build: deployed Vercel functions
 	// have no node_modules at runtime. Build-only — in dev the SSR module
 	// runner can't inline CJS deps like react ("module is not defined").
-	// sharp is excluded: it uses native binaries that can't be bundled, so
-	// Nitro resolves it at runtime from node_modules instead.
-	ssr: command === "build" ? { noExternal: true, external: ["sharp"] } : {},
+	ssr: command === "build" ? { noExternal: true } : {},
 }));

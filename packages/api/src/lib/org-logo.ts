@@ -1,27 +1,12 @@
 import type { DrizzleDbType } from "@projection/db";
 import { organization, settings } from "@projection/db/schema/auth";
 import { and, eq, isNull } from "drizzle-orm";
-import sharp from "sharp";
 
-/** Fetch the logo image and convert it to a PNG data URI (react-pdf only
- *  supports JPEG, PNG, and SVG — WebP and other formats must be transcoded).
- *  Returns undefined when the fetch or conversion fails. */
-async function fetchAsPngDataUri(url: string): Promise<string | undefined> {
-	try {
-		const response = await fetch(url);
-		if (!response.ok) return undefined;
-		const buffer = Buffer.from(await response.arrayBuffer());
-		const png = await sharp(buffer).png().toBuffer();
-		return `data:image/png;base64,${png.toString("base64")}`;
-	} catch {
-		return undefined;
-	}
-}
-
-/** Look up the org's logo URL when show_org_logo_on_exports is true, fetch
- *  the image, and return it as a PNG data URI suitable for react-pdf's <Image>.
- *  Returns undefined when the setting is off, the org has no logo, or image
- *  conversion fails. */
+/** Look up the org's logo when show_org_logo_on_exports is true.
+ *  Returns undefined when the setting is off, the org has no logo, or the
+ *  project has no org. The logo value is expected to be a data URI (set via
+ *  the settings page) so react-pdf can render it directly — no server-side
+ *  format conversion needed. */
 export async function resolveOrgLogo(
 	db: DrizzleDbType,
 	orgId: string | null,
@@ -42,6 +27,5 @@ export async function resolveOrgLogo(
 		.select({ logo: organization.logo })
 		.from(organization)
 		.where(eq(organization.id, orgId));
-	if (!org?.logo) return undefined;
-	return fetchAsPngDataUri(org.logo);
+	return org?.logo ?? undefined;
 }
