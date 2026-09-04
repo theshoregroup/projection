@@ -32,45 +32,46 @@ import { createFileRoute } from "@tanstack/react-router";
 import { formatDate } from "date-fns";
 import { useState } from "react";
 import { toast } from "sonner";
-import { InviteMemberDialog } from "@/components/member/invite-dialog";
+import { InviteMemberDialog } from "@/components/member/invite.dialog";
 import { authClient } from "@/lib/auth-client";
+import { getSsrHeaders } from "@/lib/auth-headers";
 import { requireOrgPermission } from "@/lib/permissions";
-
-const membersQry = queryOptions({
-	queryKey: ["getMembers"],
-	queryFn: async () => {
-		const { data, error } = await authClient.organization.listMembers();
-		if (error) throw error;
-		return data;
-	},
-});
-
-const invitationsQry = queryOptions({
-	queryKey: ["invitations"],
-	queryFn: async () => {
-		const { data, error } = await authClient.organization.listInvitations();
-		if (error) throw error;
-		return data ?? [];
-	},
-});
-
-type MembersResult = NonNullable<
-	Awaited<ReturnType<NonNullable<(typeof membersQry)["queryFn"]>>>
->;
-type MemberRow = MembersResult["members"][number];
 
 export const Route = createFileRoute("/_org/settings/members")({
 	beforeLoad: () => requireOrgPermission({ member: ["update"] }, "throw"),
+	context: () => ({
+		membersQry: queryOptions({
+			queryKey: ["getMembers"],
+			queryFn: async () => {
+				const { data, error } = await authClient.organization.listMembers({
+					fetchOptions: { headers: getSsrHeaders() },
+				});
+				if (error) throw error;
+				return data;
+			},
+		}),
+		invitationsQry: queryOptions({
+			queryKey: ["invitations"],
+			queryFn: async () => {
+				const { data, error } = await authClient.organization.listInvitations({
+					fetchOptions: { headers: getSsrHeaders() },
+				});
+				if (error) throw error;
+				return data ?? [];
+			},
+		}),
+	}),
 	loader: async ({ context }) =>
 		await Promise.all([
-			context.queryClient.ensureQueryData(membersQry),
-			context.queryClient.ensureQueryData(invitationsQry),
+			context.queryClient.ensureQueryData(context.membersQry),
+			context.queryClient.ensureQueryData(context.invitationsQry),
 		]),
 	component: RouteComponent,
 });
 
 function RouteComponent() {
 	const { data: sessionData } = authClient.useSession();
+	const { membersQry, invitationsQry } = Route.useRouteContext();
 	const { data } = useSuspenseQuery(membersQry);
 	const { data: invitations } = useSuspenseQuery(invitationsQry);
 	const queryClient = useQueryClient();
@@ -149,7 +150,7 @@ function RouteComponent() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{data.members.map((member: MemberRow) => (
+						{data.members.map((member) => (
 							<TableRow key={member.id}>
 								<TableCell className="font-medium">
 									{member.user?.name}
