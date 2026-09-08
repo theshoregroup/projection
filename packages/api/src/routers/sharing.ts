@@ -1,3 +1,4 @@
+import { grantOrgMembershipForProjects } from "@projection/db/helpers";
 import { projectEditor } from "@projection/db/schema/app";
 import { user } from "@projection/db/schema/auth";
 import { env } from "@projection/env/server";
@@ -65,7 +66,13 @@ export const sharingRouter = router({
 				})
 				.returning();
 
-			if (!existingUser) {
+			if (existingUser) {
+				// A known user becomes an active Editor now, so grant membership of
+				// the Project's org — the project pages sit behind an org gate.
+				await grantOrgMembershipForProjects(ctx.db, existingUser.id, [
+					input.projectId,
+				]);
+			} else {
 				// Pending Invite — email them via trigger.dev (ADR 0005). The invite
 				// row is the source of truth, so a failed send never fails the invite.
 				try {
@@ -78,7 +85,9 @@ export const sharingRouter = router({
 							data: {
 								inviterName: ctx.session.user.name,
 								projectName: access.project.name,
-								signInUrl: env.BETTER_AUTH_URL,
+								// Deep-link to the Project. Signed-out clicks route through
+								// sign-in (?redirect=) and land back on the Project.
+								signInUrl: `${env.BETTER_AUTH_URL}/projects/${input.projectId}`,
 							},
 						},
 					});
