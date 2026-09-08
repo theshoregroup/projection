@@ -31,6 +31,7 @@ import {
 	Link,
 	notFound,
 	redirect,
+	useNavigate,
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -124,6 +125,7 @@ export const Route = createFileRoute("/auth/v1/invites/")({
 function RouteComponent() {
 	const { inviteId } = Route.useLoaderDeps();
 	const { data: invitation } = useSuspenseQuery(getInviteQry(inviteId));
+	const navigate = useNavigate();
 
 	const [error, setError] = useState<string | null>(null);
 
@@ -154,9 +156,7 @@ function RouteComponent() {
 					"If you do need to join this organization, please ask an administrator to invite you.",
 			});
 
-			throw redirect({
-				to: "/auth/v1/organizations",
-			});
+			navigate({ to: "/auth/v1/organizations" });
 		},
 
 		onError: (error) => {
@@ -202,14 +202,11 @@ function RouteComponent() {
 
 			if (setActiveError || !activeOrg) {
 				// Failed to set, this may be a caching issue?
-				throw redirect({
-					to: "/auth/v1/organizations",
-				});
+				navigate({ to: "/auth/v1/organizations" });
+				return;
 			}
 
-			throw redirect({
-				to: "/dashboard",
-			});
+			navigate({ to: "/dashboard" });
 		},
 
 		onError: (error) => {
