@@ -81,7 +81,7 @@ session to the Project's org rather than walling them at the picker:
 
 1. **Auth** (`packages/auth/src/auth.ts`): org plugin gains
    `sendInvitationEmail` — fires the `email.send` trigger.dev task (ADR 0005
-   infra, already Resend-backed) from `Onboarding <onboarding@projection.com>`
+   infra, already Resend-backed) from `Onboarding <onboarding@theshoregroup.org>`
    with the new `org-invite` template; accept URL =
    `${env.BETTER_AUTH_URL}/auth/v1/invites?inviteId=…`.
    `inviteMember` keeps default `autoAcceptEnabled: true`: inviting an email

@@ -33,13 +33,16 @@ export function createAuth() {
 			microsoft: {
 				clientId: env.AZURE_CLIENT_ID,
 				clientSecret: env.AZURE_CLIENT_SECRET,
-        tenantId: env.AZURE_TENANT_ID,
-				requireEmailVerification: true
+				tenantId: env.AZURE_TENANT_ID,
+        scope: ['openid', 'profile', 'email'],
+				requireEmailVerification: true,
+				mapProfileToUser: (profile) => ({
+          email: profile.email ?? profile.mail ?? profile.preferred_username,
+          emailVerified: true
+				}),
 			},
-    },
-    emailVerification: {
+		},
 
-    },
 		databaseHooks: {
 			user: {
 				create: {
@@ -85,7 +88,7 @@ export function createAuth() {
 				}) => {
 					try {
 						await tasks.trigger("email.send", {
-							from: "Onboarding <onboarding@projection.com>",
+							from: "Accounts <accounts@theshoregroup.org>",
 							to: email,
 							subject: `${inviter.user.name} invited you to join ${org.name} on projection`,
 							props: {

@@ -67,11 +67,10 @@ export function InviteMemberDialog({
 				id: `invite_${vars.email}`,
 				description: err.message,
 			}),
-		onSuccess: (data, vars) => {
+		onSuccess: (data) => {
 			toast.success(`Invitation sent to ${data.email}`, {
 				id: `invite_${data.email}`,
 			});
-			void vars;
 			onOpenChange(false);
 			void queryClient.invalidateQueries({ queryKey: ["getMembers"] });
 			void queryClient.invalidateQueries({ queryKey: ["invitations"] });

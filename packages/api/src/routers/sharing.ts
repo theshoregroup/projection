@@ -70,7 +70,7 @@ export const sharingRouter = router({
 				// row is the source of truth, so a failed send never fails the invite.
 				try {
 					await tasks.trigger("email.send", {
-						from: "Accounts <accounts@projection.com>",
+						from: "Accounts <accounts@theshoregroup.org>",
 						to: email,
 						subject: `${ctx.session.user.name} invited you to edit “${access.project.name}” on projection`,
 						props: {

@@ -55,14 +55,20 @@ const emailTemplatesByKey = Object.fromEntries(
 
 const singleOrArrayOfEmails = z.email().or(z.email().array());
 
-const typeSafeEmails = z.enum([
-	"Onboarding <onboarding@projection.com>",
-	"Accounts <accounts@projection.com>",
-	"Signing <signing@projection.com>",
+// Matches either a plain email or "Display Name <email@example.com>" format
+const namedEmailAddress = z.string().regex(
+	/^[^<>]+<[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}>$/,
+	'Must be a plain email or "Display Name <email>" format',
+);
+
+const emailOrNamedAddress = z.email().or(namedEmailAddress);
+
+const typeSafeEmails = z.union([
+	z.literal("Accounts <accounts@theshoregroup.org>"),
 ]);
 
 const emailTaskSchema = z.object({
-	from: typeSafeEmails.or(z.email()).catch("fallback@dev.trackit.supply"),
+	from: typeSafeEmails.or(emailOrNamedAddress).catch("fallback@dev.trackit.supply"),
 	to: singleOrArrayOfEmails,
 	bcc: singleOrArrayOfEmails.optional(),
 	cc: singleOrArrayOfEmails.optional(),
