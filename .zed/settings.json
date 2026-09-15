@@ -21,12 +21,10 @@
 			}
 		}
 	},
+	"format_on_save": "on",
 	"languages": {
 		"CSS": {
-			"language_servers": [
-				"tailwindcss-intellisense-css",
-				"!vscode-css-language-server"
-			],
+			"language_servers": ["tailwindcss-intellisense-css", "!vscode-css-language-server"],
 			"formatter": { "language_server": { "name": "biome" } }
 		},
 

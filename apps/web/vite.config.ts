@@ -3,7 +3,9 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
+import devtoolsJson from "vite-plugin-devtools-json";
 import "@projection/env/server";
+import { dialogRegistryPlugin } from "./src/utils/dialogs/vite-plugin";
 
 export default defineConfig(({ command }) => ({
 	server: {
@@ -17,7 +19,17 @@ export default defineConfig(({ command }) => ({
 		// never invoked — crashing the whole bundle at import time.
 		alias: { tslib: "tslib/tslib.es6.mjs" },
 	},
-	plugins: [tailwindcss(), tanstackStart(), nitro(), viteReact()],
+	plugins: [
+		devtoolsJson({
+			projectRoot: "/apps/web",
+			uuid: "8e29a4bf-a78a-4a9a-97d4-59c0d4e92e30",
+		}),
+		dialogRegistryPlugin(),
+		tailwindcss(),
+		tanstackStart(),
+		nitro(),
+		viteReact(),
+	],
 	// Bundle all SSR deps into the server build: deployed Vercel functions
 	// have no node_modules at runtime. Build-only — in dev the SSR module
 	// runner can't inline CJS deps like react ("module is not defined").

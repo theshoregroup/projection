@@ -14,10 +14,26 @@ export const sharingRouter = router({
 		.input(z.object({ projectId: z.string().min(1) }))
 		.query(async ({ ctx, input }) => {
 			await loadProjectForUser(ctx.db, input.projectId, ctx.session.user.id);
-			return ctx.db
-				.select()
-				.from(projectEditor)
-				.where(eq(projectEditor.projectId, input.projectId));
+
+			return await ctx.db.query.projectEditor.findMany({
+				columns: {
+					id: true,
+					email: true,
+					status: true,
+				},
+				where: {
+					projectId: input.projectId,
+				},
+				with: {
+					user: {
+						columns: {
+							email: true,
+							name: true,
+							image: true,
+						},
+					},
+				},
+			});
 		}),
 
 	/**

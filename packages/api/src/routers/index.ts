@@ -1,3 +1,4 @@
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { publicProcedure, router } from "../index";
 import { boardRouter } from "./board";
 import { linesRouter } from "./lines";
@@ -16,3 +17,5 @@ export const appRouter = router({
 	share: shareRouter,
 });
 export type AppRouter = typeof appRouter;
+export type RouterInputs = inferRouterInputs<AppRouter>;
+export type RouterOutputs = inferRouterOutputs<AppRouter>;

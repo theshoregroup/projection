@@ -38,18 +38,24 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"correctness": {
 				"useExhaustiveDependencies": "info"
 			},
 			"nursery": {
 				"useSortedClasses": {
-					"level": "warn",
-					"fix": "safe",
+					"level": "error",
+					"fix": "unsafe",
 					"options": {
 						"functions": ["clsx", "cva", "cn"]
 					}
-				}
+				},
+				"useReactAsyncServerFunction": "error",
+				"useReactCompiler": "error",
+				"noDrizzleDeleteWithoutWhere": "error",
+				"noDrizzleUpdateWithoutWhere": "error",
+				"useReactNamingConvention": "error",
+				"noReactStringRefs": "error"
 			},
 			"style": {
 				"noParameterAssign": "error",

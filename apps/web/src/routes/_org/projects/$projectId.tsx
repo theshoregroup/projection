@@ -9,7 +9,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import BoardView from "@/components/board/board-view";
 import SelectionActions from "@/components/board/selection-actions";
-import SharePanel from "@/components/board/share-panel";
+import {
+	projectShareDialog,
+	ShareProjectDialog,
+} from "@/components/board/share.dialog";
 import RenameProjectDialog from "@/components/rename-project-dialog";
 import { NotFoundComponent } from "@/components/ui/not-found";
 import { getLinesCollection } from "@/lib/collections";
@@ -31,16 +34,6 @@ export const Route = createFileRoute("/_org/projects/$projectId")({
 	pendingComponent: () => <PendingPageComponent />,
 });
 
-// Props spread onto the Button so the Share dialog's trigger (base-ui
-// `render`) can attach its handlers — swallowing them breaks opening.
-function ShareButton(props: React.ComponentProps<typeof Button>) {
-	return (
-		<Button size="sm" {...props}>
-			<ShareFatIcon className="size-4" /> Share
-		</Button>
-	);
-}
-
 function PendingPageComponent() {
 	return (
 		<div className="flex flex-col gap-2">
@@ -50,7 +43,9 @@ function PendingPageComponent() {
 					<Skeleton className="h-8 w-80 max-w-80" />
 					<Skeleton className="h-4 w-96 max-w-96" />
 				</div>
-				<ShareButton />
+				<Button size="sm">
+					<ShareFatIcon className="size-4" /> Share
+				</Button>
 			</div>
 		</div>
 	);
@@ -110,7 +105,7 @@ function ProjectPage() {
 		);
 	}
 
-	const { project, role } = projectQuery.data;
+	const { project } = projectQuery.data;
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -144,7 +139,13 @@ function ProjectPage() {
 						onClear={() => setSelectedIds(new Set())}
 						onGrouped={setRenameItemId}
 					/>
-					<SharePanel project={project} role={role} trigger={<ShareButton />} />
+
+					<Button
+						size={"sm"}
+						render={<projectShareDialog.Link dialogId={project.id} />}
+					>
+						<ShareFatIcon className="size-4" /> Share
+					</Button>
 				</div>
 			</div>
 
@@ -156,6 +157,7 @@ function ProjectPage() {
 				onToggleSelected={toggleSelected}
 				renameItemId={renameItemId}
 			/>
+			<ShareProjectDialog />
 		</div>
 	);
 }
