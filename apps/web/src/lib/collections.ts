@@ -1,18 +1,15 @@
-import type { AppRouter } from "@projection/api/routers/index";
+import type { AppRouter, RouterOutputs } from "@projection/api/routers/index";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { createCollection } from "@tanstack/react-db";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient } from "@trpc/client";
-import type { inferRouterOutputs } from "@trpc/server";
 
 // Local-app feel (ADR 0002): TanStack DB collections sync from tRPC, mutations
 // apply optimistically and roll back on error. Incoming sync is pull-based —
 // refetchInterval below plus focus refetch — never pushed.
 
-type RouterOutputs = inferRouterOutputs<AppRouter>;
 export type ProjectRow = RouterOutputs["projects"]["listMine"][number];
 export type LineRow = RouterOutputs["lines"]["list"][number];
-export type EditorRow = RouterOutputs["sharing"]["listEditors"][number];
 
 /** A Project plus how the signed-in user relates to it. `ownerName` is only
  * populated for shared Projects (CONTEXT.md — Owner) — it's who shared it. */
@@ -151,27 +148,6 @@ export function getLinesCollection(
 						await trpc.lines.delete.mutate({ id: mutation.key as string });
 					}
 				},
-			}),
-		),
-	);
-}
-
-export function getEditorsCollection(
-	queryClient: QueryClient,
-	trpc: TRPCClient<AppRouter>,
-	projectId: string,
-) {
-	return memoized(queryClient, `editors:${projectId}`, () =>
-		createCollection(
-			queryCollectionOptions({
-				id: `editors-${projectId}`,
-				queryKey: ["collection", "editors", projectId],
-				queryClient,
-				getKey: (row: EditorRow) => row.id,
-				startSync: START_SYNC,
-				refetchInterval: BOARD_REFETCH_INTERVAL,
-				queryFn: (): Promise<EditorRow[]> =>
-					trpc.sharing.listEditors.query({ projectId }),
 			}),
 		),
 	);

@@ -26,25 +26,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 import { authClient } from "@/lib/auth-client";
+import { defineDialog } from "@/utils/dialogs/define-dialog";
+
+export const inviteMemberDialog = defineDialog({
+	schema: z.object({
+		dialogKey: z.literal("invite:member"),
+	}),
+});
 
 const inviteMemberSchema = z.object({
 	email: z.email(),
-	role: z.enum(organizationRoleNames as ["owner", "admin", "member"]),
+	role: z.enum(organizationRoleNames),
 });
 
-/**
- * Invite someone to the organization (the only way new users join —
- * ADR 0008). Existing users are auto-accepted instantly; others get an
- * email with a link to the accept/decline page.
- */
-export function InviteMemberDialog({
-	open,
-	onOpenChange,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-}) {
+const defaultValues: z.infer<typeof inviteMemberSchema> = {
+	email: "",
+	role: "member",
+};
+
+export function InviteMemberDialog() {
 	const queryClient = useQueryClient();
+	const { open, onOpenChange } = inviteMemberDialog.useControl();
 
 	const mutation = useMutation({
 		mutationKey: ["member", "invite"],
@@ -71,6 +73,7 @@ export function InviteMemberDialog({
 			toast.success(`Invitation sent to ${data.email}`, {
 				id: `invite_${data.email}`,
 			});
+			form.reset(defaultValues);
 			onOpenChange(false);
 			void queryClient.invalidateQueries({ queryKey: ["getMembers"] });
 			void queryClient.invalidateQueries({ queryKey: ["invitations"] });
@@ -78,18 +81,12 @@ export function InviteMemberDialog({
 	});
 
 	const form = useForm({
-		defaultValues: {
-			email: "",
-			role: "member" as z.infer<typeof inviteMemberSchema>["role"],
-		},
+		defaultValues,
 		validators: {
 			onSubmit: inviteMemberSchema,
 		},
-		onSubmit: async ({ value, formApi }) => {
+		onSubmit: async ({ value }) => {
 			await mutation.mutateAsync(value);
-			// React-form 1.x FormApi has no bulk setValues — reset per field
-			formApi.setFieldValue("email", "");
-			formApi.setFieldValue("role", "member");
 		},
 	});
 

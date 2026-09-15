@@ -5,6 +5,10 @@
 import { z } from "zod";
 
 export const dialogSchemas = {
+	// from components/member/invite.dialog.tsx
+	"invite:member": z.object({
+		dialogKey: z.literal("invite:member"),
+	}),
 	// from components/board/share.dialog.tsx
 	"project:share": z.object({
 		dialogKey: z.literal("project:share"),

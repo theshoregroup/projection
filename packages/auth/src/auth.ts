@@ -10,6 +10,7 @@ import { betterAuth } from "better-auth";
 import { admin, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
+import { orgPluginConfig } from "./organization/config";
 import { organizationAc, organizationRoles } from "./organization/permissions";
 import { registry } from "./settings/registry";
 
@@ -34,11 +35,11 @@ export function createAuth() {
 				clientId: env.AZURE_CLIENT_ID,
 				clientSecret: env.AZURE_CLIENT_SECRET,
 				tenantId: env.AZURE_TENANT_ID,
-        scope: ['openid', 'profile', 'email'],
+				scope: ["openid", "profile", "email"],
 				requireEmailVerification: true,
 				mapProfileToUser: (profile) => ({
-          email: profile.email ?? profile.mail ?? profile.preferred_username,
-          emailVerified: true
+					email: profile.email ?? profile.mail ?? profile.preferred_username,
+					emailVerified: true,
 				}),
 			},
 		},
@@ -70,44 +71,7 @@ export function createAuth() {
 		// below; sign-in itself is untouched.
 		// tanstackStartCookies must stay last in the plugins array
 		plugins: [
-			organization({
-				allowUserToCreateOrganization: true,
-				disableOrganizationDeletion: true,
-				membershipLimit: 10_000,
-				// Enforce the owner/admin/member role policy on org management
-				// endpoints (settings gate, member list, invitations…)
-				ac: organizationAc,
-				roles: organizationRoles,
-				// The invite email is the only way a fresh sign-in joins the org
-				// (.scratch/org-flow) — lands on the accept/decline page
-				sendInvitationEmail: async ({
-					invitation,
-					organization: org,
-					email,
-					inviter,
-				}) => {
-					try {
-						await tasks.trigger("email.send", {
-							from: "Accounts <accounts@theshoregroup.org>",
-							to: email,
-							subject: `${inviter.user.name} invited you to join ${org.name} on projection`,
-							props: {
-								key: "org-invite",
-								data: {
-									organizationName: org.name,
-									inviterName: inviter.user.name,
-									inviteeEmail: email,
-									acceptUrl: `${env.BETTER_AUTH_URL}/auth/v1/invites?inviteId=${invitation.id}`,
-								},
-							},
-						});
-					} catch (error) {
-						// The invitation row is the source of truth — a failed send
-						// never fails the invite (same pattern as sharing.ts)
-						console.warn("[auth] org invite email failed to trigger", error);
-					}
-				},
-			}),
+			orgPluginConfig,
 			settingsPlugin({
 				registry,
 				withOrg: true,

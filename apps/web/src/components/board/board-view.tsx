@@ -868,6 +868,7 @@ export default function BoardView({
 
 								if (bar.isMilestone) {
 									return (
+										// biome-ignore lint/a11y/noStaticElementInteractions: required for milestone click detection
 										<g
 											key={line.id}
 											className={readOnly ? "" : "cursor-grab touch-none"}
@@ -885,6 +886,7 @@ export default function BoardView({
 								const barX = bar.x + BAR_INSET;
 								const barW = Math.max(bar.width - BAR_INSET * 2, 2);
 								return (
+									// biome-ignore lint/a11y/noStaticElementInteractions: required for milestone click detection
 									<g
 										key={line.id}
 										onPointerMove={onDragMove}

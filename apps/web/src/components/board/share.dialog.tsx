@@ -2,7 +2,9 @@ import {
 	ArrowsClockwiseIcon,
 	CopyIcon,
 	FilePdfIcon,
+	PaperPlaneIcon,
 	TrashIcon,
+	UserPlusIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import type { RouterOutputs } from "@projection/api/routers/index";
 import {
@@ -18,6 +20,7 @@ import {
 	ComboboxInput,
 	ComboboxItem,
 	ComboboxList,
+	ComboboxSeparator,
 } from "@projection/ui/components/combobox";
 import {
 	Dialog,
@@ -44,19 +47,20 @@ import {
 import { QuerySuspenseBoundary } from "@projection/ui/components/query";
 import { Switch } from "@projection/ui/components/switch";
 import {
-	queryOptions,
 	useMutation,
 	useQuery,
 	useQueryClient,
 	useSuspenseQueries,
 } from "@tanstack/react-query";
 import { cn } from "cn";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import z from "zod";
+
 import { authClient } from "@/lib/auth-client";
 import { defineDialog } from "@/utils/dialogs/define-dialog";
 import { useTRPC, useTRPCClient } from "@/utils/trpc";
+import { InviteMemberDialog } from "../member/invite.dialog";
 
 const PDF_PAGE_SIZES = ["A3", "A2", "A1", "A0"] as const;
 
@@ -78,18 +82,6 @@ function Content() {
 	const projEditorsQueryOptions = trpc.sharing.listEditors.queryOptions({
 		projectId: control.dialogId ?? "",
 	});
-	const membersQueryOptions = queryOptions({
-		queryKey: ["members", "againstProject", control.dialogId],
-		queryFn: () => {
-			const { data, error } = authClient.useActiveOrganization();
-
-			if (error) {
-				throw error;
-			}
-
-			return data?.members ?? [];
-		},
-	});
 
 	const { editors, project, role } = useSuspenseQueries({
 		queries: [projQueryOptions, projEditorsQueryOptions],
@@ -100,7 +92,6 @@ function Content() {
 			};
 		},
 	});
-	const { data: members } = useQuery(membersQueryOptions);
 
 	const regenerateShareTokenMutation = useMutation(
 		trpc.projects.regenerateShareToken.mutationOptions({
@@ -266,33 +257,7 @@ function Content() {
 					</ItemGroup>
 				)}
 
-				<Combobox
-					items={members}
-					itemToStringValue={(member: NonNullable<typeof members>[number]) =>
-						member.user.name
-					}
-				>
-					<ComboboxInput placeholder="Search members..." />
-					<ComboboxContent>
-						<ComboboxEmpty>No members found.</ComboboxEmpty>
-						<ComboboxList>
-							{(member) => (
-								<ComboboxItem key={member.id} value={member}>
-									<Item size="xs" className="p-0">
-										<ItemContent>
-											<ItemTitle className="whitespace-nowrap">
-												{member.user.name}
-											</ItemTitle>
-											<ItemDescription>
-												{member.user.email} ({member.role})
-											</ItemDescription>
-										</ItemContent>
-									</Item>
-								</ComboboxItem>
-							)}
-						</ComboboxList>
-					</ComboboxContent>
-				</Combobox>
+				<AddEditorOrInviteMemberCombobox projectId={project.id} />
 			</div>
 
 			{/* Download as a PDF */}
@@ -318,6 +283,167 @@ function Content() {
 				)}
 				<DownloadPdfControls projectId={project.id} />
 			</div>
+		</>
+	);
+}
+
+function AddEditorOrInviteMemberCombobox({ projectId }: { projectId: string }) {
+	const trpc = useTRPC();
+	const queryClient = useQueryClient();
+
+	const { data: members } = useQuery({
+		queryKey: ["members", "againstProject"],
+		queryFn: () => {
+			const { data, error } = authClient.useActiveOrganization();
+
+			if (error) {
+				throw error;
+			}
+
+			return data?.members ?? [];
+		},
+		select: (data) =>
+			data.map((member) => ({
+				id: member.id,
+				label: member.user.name,
+				sublabel: `${member.user.email} (${member.role})`,
+				value: `${member.user.name}:${member.user.email}`,
+				imageUrl: member.user.image,
+				creatable: false,
+			})),
+	});
+
+	const inviteMemberMutation = useMutation(
+		trpc.sharing.invite.mutationOptions({
+			onMutate: (vars) =>
+				toast.loading(`Inviting ${vars.email} to join`, { description: "" }),
+			onError: (error, _v, toastId) =>
+				toast.error(
+					`There was an error with the invite: ${error.data?.code ?? "UNKNOWN ERROR"}`,
+					{ id: toastId, description: error.message },
+				),
+			onSuccess: (data, _v, toastId) => {
+				toast.success(`Invited ${data.editor.email} to join`, {
+					id: toastId,
+					description: data.inviteSent
+						? "An invite to join projection was sent to their inbox"
+						: "They will be able to see your project in their dashboard",
+				});
+				setSearchTerm("");
+			},
+			onSettled: async () =>
+				await queryClient.invalidateQueries({
+					queryKey: trpc.sharing.listEditors.queryKey(),
+				}),
+		}),
+	);
+
+	const [searchTerm, setSearchTerm] = useState("");
+
+	const trimmed = searchTerm.trim();
+	const lowered = trimmed.toLocaleLowerCase();
+	const exactExists = (members ?? []).some(
+		(l) => l.value.trim().toLocaleLowerCase() === lowered,
+	);
+	const itemsForView: NonNullable<typeof members> =
+		trimmed !== "" && !exactExists
+			? [
+					...(members ?? []),
+					{
+						creatable: z.email().safeParse(trimmed).success,
+						id: `create:${lowered}`,
+						value: `create:${trimmed}`,
+						imageUrl: undefined,
+						label: `Invite ${trimmed}`,
+						sublabel: z.email().safeParse(trimmed).success
+							? "They'll be invited to join projection"
+							: "Please enter a valid email address",
+					},
+				]
+			: (members ?? []);
+
+	return (
+		<>
+			<Combobox
+				disabled={inviteMemberMutation.isPending}
+				items={itemsForView}
+				inputValue={searchTerm}
+				onInputValueChange={setSearchTerm}
+				onValueChange={async (next: (typeof itemsForView)[number] | null) => {
+					if (next !== null) {
+						await inviteMemberMutation.mutateAsync({
+							email: next.value.startsWith("create:")
+								? next.value.slice(7)
+								: next.value,
+							projectId,
+						});
+					}
+				}}
+			>
+				<ComboboxInput placeholder="Search members..." />
+				<ComboboxContent>
+					<ComboboxEmpty>No members found.</ComboboxEmpty>
+					<ComboboxList>
+						{(item: NonNullable<typeof members>[number]) => {
+							const isCreateItem = item.id.startsWith("create:");
+
+							return (
+								<ComboboxItem
+									value={item}
+									key={item.id}
+									disabled={isCreateItem && !item.creatable}
+								>
+									<Item size="xs" className="p-0">
+										<ItemMedia variant={"icon"}>
+											<Avatar className="rounded-lg after:rounded-lg">
+												{item.imageUrl && (
+													<AvatarImage
+														className="rounded-lg"
+														src={item.imageUrl}
+													/>
+												)}
+												<AvatarFallback className="rounded-lg bg-secondary-foreground text-secondary">
+													{isCreateItem ? (
+														<UserPlusIcon />
+													) : (
+														item.label
+															.split(" ")
+															.map((w) => w.at(0))
+															.join("")
+													)}
+												</AvatarFallback>
+											</Avatar>
+										</ItemMedia>
+										<ItemContent>
+											<ItemTitle className="whitespace-nowrap">
+												{item.label}
+											</ItemTitle>
+											<ItemDescription>{item.sublabel}</ItemDescription>
+										</ItemContent>
+									</Item>
+								</ComboboxItem>
+							);
+						}}
+					</ComboboxList>
+				</ComboboxContent>
+			</Combobox>
+
+			{inviteMemberMutation.data?.inviteSent && (
+				<Item variant={"muted"}>
+					<ItemMedia variant={"icon"}>
+						<PaperPlaneIcon />
+					</ItemMedia>
+					<ItemContent>
+						<ItemTitle>
+							Sent Invite to {inviteMemberMutation.data.editor.email}
+						</ItemTitle>
+						<ItemDescription>
+							They'll recive an email to their inbox. You can remove them from
+							the project at any time.
+						</ItemDescription>
+					</ItemContent>
+				</Item>
+			)}
 		</>
 	);
 }
@@ -411,12 +537,16 @@ export function ShareProjectDialog() {
 	const control = projectShareDialog.useControl();
 
 	return (
-		<Dialog open={control.open} onOpenChange={control.onOpenChange}>
-			<DialogContent className="overflow-y-auto">
-				<QuerySuspenseBoundary>
-					<Content />
-				</QuerySuspenseBoundary>
-			</DialogContent>
-		</Dialog>
+		<>
+			<Dialog open={control.open} onOpenChange={control.onOpenChange}>
+				<DialogContent className="overflow-y-auto">
+					<QuerySuspenseBoundary>
+						<Content />
+					</QuerySuspenseBoundary>
+				</DialogContent>
+			</Dialog>
+
+			<InviteMemberDialog />
+		</>
 	);
 }

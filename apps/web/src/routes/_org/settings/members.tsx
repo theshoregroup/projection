@@ -32,7 +32,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { formatDate } from "date-fns";
 import { useState } from "react";
 import { toast } from "sonner";
-import { InviteMemberDialog } from "@/components/member/invite.dialog";
+import {
+	InviteMemberDialog,
+	inviteMemberDialog,
+} from "@/components/member/invite.dialog";
 import { authClient } from "@/lib/auth-client";
 import { getSsrHeaders } from "@/lib/auth-headers";
 import { requireOrgPermission } from "@/lib/permissions";
@@ -75,8 +78,6 @@ function RouteComponent() {
 	const { data } = useSuspenseQuery(membersQry);
 	const { data: invitations } = useSuspenseQuery(invitationsQry);
 	const queryClient = useQueryClient();
-
-	const [inviteOpen, setInviteOpen] = useState(false);
 
 	const handleRemove = useMutation({
 		mutationKey: ["remove_member"],
@@ -133,7 +134,7 @@ function RouteComponent() {
 	return (
 		<div className="mt-4 space-y-4">
 			<div className="flex flex-row justify-end gap-4">
-				<Button onClick={() => setInviteOpen(true)}>
+				<Button render={<inviteMemberDialog.Link />}>
 					<PlusCircleIcon /> Invite member
 				</Button>
 			</div>
@@ -233,7 +234,7 @@ function RouteComponent() {
 				</Card>
 			)}
 
-			<InviteMemberDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+			<InviteMemberDialog />
 		</div>
 	);
 }
