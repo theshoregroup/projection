@@ -31,6 +31,7 @@ import {
 } from "@tanstack/react-router";
 import { useMemo } from "react";
 import CreateProjectDialog from "@/components/create-project-dialog";
+import { DuplicateProjectDialog } from "@/components/duplicate-project.dialog";
 import { UserMenu } from "@/components/navigation/user-menu";
 import { authClient } from "@/lib/auth-client";
 import { getSsrHeaders } from "@/lib/auth-headers";
@@ -247,6 +248,8 @@ function OrgLayout() {
 			<main className="relative w-full">
 				<Outlet />
 			</main>
+
+			<DuplicateProjectDialog />
 		</SidebarProvider>
 	);
 }

@@ -32,6 +32,12 @@ export const projectUpdateSchema = z.object({
 	allowVisitorsToExport: z.boolean().optional(),
 });
 
+export const projectDuplicateSchema = z.object({
+	id: z.uuid(),
+	name: z.string().min(1).max(120).optional(),
+	newStartDate: isoDate.optional(),
+});
+
 export const lineBaseSchema = z.object({
 	item: z.string().min(1).max(200),
 	startDate: isoDate,

@@ -4,6 +4,7 @@ import { user } from "@projection/db/schema/auth";
 import { TRPCError } from "@trpc/server";
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { addDays, diffDays } from "../domain/dates";
 import { duplicateLines } from "../domain/duplicate";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { protectedProcedure, router } from "../index";
@@ -18,7 +19,11 @@ import {
 	type PdfPageSize,
 	renderBoardPdf,
 } from "../pdf/board-pdf";
-import { projectCreateSchema, projectUpdateSchema } from "../schemas";
+import {
+	projectCreateSchema,
+	projectDuplicateSchema,
+	projectUpdateSchema,
+} from "../schemas";
 
 const exportPdfInput = z.object({
 	id: z.uuid(),
@@ -102,11 +107,13 @@ export const projectsRouter = router({
 			return { id: input.id };
 		}),
 
-	/** Forks a Project into a new one the caller owns: same seed window and
-	 * Lines (groupId references remapped to fresh ids), but a fresh Share
-	 * Link token and no Editors — sharing never crosses a duplicate. */
+	/** Forks a Project into a new one the caller owns: same Lines (groupId
+	 * references remapped to fresh ids), but a fresh Share Link token and no
+	 * Editors — sharing never crosses a duplicate. When `newStartDate` is
+	 * provided, all line dates are shifted by the day offset between the
+	 * original project's seedStart and the new date. */
 	duplicate: protectedProcedure
-		.input(z.object({ id: z.uuid() }))
+		.input(projectDuplicateSchema)
 		.mutation(async ({ ctx, input }) => {
 			const access = await loadProjectForUser(
 				ctx.db,
@@ -114,6 +121,9 @@ export const projectsRouter = router({
 				ctx.session.user.id,
 			);
 			assertOwner(access.role);
+			const dayOffset = input.newStartDate
+				? diffDays(access.project.seedStart, input.newStartDate)
+				: 0;
 			const lines = await ctx.db
 				.select()
 				.from(line)
@@ -126,17 +136,17 @@ export const projectsRouter = router({
 					.values({
 						ownerId: ctx.session.user.id,
 						organizationId: access.project.organizationId,
-						name: `${access.project.name} (copy)`,
+						name: input.name ?? `${access.project.name} (copy)`,
 						description: access.project.description,
-						seedStart: access.project.seedStart,
-						seedEnd: access.project.seedEnd,
+						seedStart: dayOffset !== 0 ? addDays(access.project.seedStart, dayOffset) : access.project.seedStart,
+						seedEnd: dayOffset !== 0 ? addDays(access.project.seedEnd, dayOffset) : access.project.seedEnd,
 						shareToken: randomUUID(),
 					})
 					.returning();
 				if (!created) {
 					throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 				}
-				const copied = duplicateLines(lines, created.id);
+				const copied = duplicateLines(lines, created.id, { dayOffset });
 				if (copied.length > 0) {
 					await tx.insert(line).values(copied);
 				}

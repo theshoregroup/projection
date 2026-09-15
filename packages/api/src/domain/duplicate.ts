@@ -1,3 +1,5 @@
+import { addDays } from "./dates";
+
 /** Shapes for forking a Project's Lines into a new Project (CONTEXT.md —
  * Project, Line, Group). Pure so the groupId remap is unit-testable without
  * a database; the router only supplies ids and persistence. */
@@ -24,21 +26,25 @@ export type DuplicatedLine = Omit<DuplicatableLine, "groupId"> & {
 /** Copies Lines onto a new Project id. Every Line gets a fresh id (from
  * `newId`, defaulting to crypto.randomUUID) and groupId references are
  * remapped through the same id map, so a Group's children still point at
- * the copied Group — never at the source Project's rows. */
+ * the copied Group — never at the source Project's rows.
+ *
+ * When `dayOffset` is provided, every line's startDate and endDate are
+ * shifted by that many whole days (positive = later, negative = earlier).
+ * This is used by project-level duplication with a new start date. */
 export function duplicateLines(
 	lines: DuplicatableLine[],
 	newProjectId: string,
-	// Wrapped: crypto.randomUUID must be called with `crypto` as its receiver
-	newId: () => string = () => crypto.randomUUID(),
+	options?: { dayOffset?: number; newId?: () => string },
 ): DuplicatedLine[] {
+	const { dayOffset = 0, newId = () => crypto.randomUUID() } = options ?? {};
 	const idMap = new Map(lines.map((l) => [l.id, newId()]));
 	return lines.map((l) => ({
 		// biome-ignore lint/style/noNonNullAssertion: idMap is built from exactly these ids
 		id: idMap.get(l.id)!,
 		projectId: newProjectId,
 		item: l.item,
-		startDate: l.startDate,
-		endDate: l.endDate,
+		startDate: dayOffset !== 0 ? addDays(l.startDate, dayOffset) : l.startDate,
+		endDate: dayOffset !== 0 ? addDays(l.endDate, dayOffset) : l.endDate,
 		assignee: l.assignee,
 		note: l.note,
 		percentComplete: l.percentComplete,

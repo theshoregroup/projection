@@ -9,6 +9,11 @@ export const dialogSchemas = {
 	"invite:member": z.object({
 		dialogKey: z.literal("invite:member"),
 	}),
+	// from components/duplicate-project.dialog.tsx
+	"project:duplicate": z.object({
+		dialogKey: z.literal("project:duplicate"),
+		dialogId: z.uuid(),
+	}),
 	// from components/board/share.dialog.tsx
 	"project:share": z.object({
 		dialogKey: z.literal("project:share"),

@@ -46,33 +46,18 @@ import { useTRPC } from "@/utils/trpc";
 
 const columnHelper = createColumnHelper<ProjectsRow>();
 
-/** Per-row actions menu (mine variant only). Duplicate forks the Project and
- * opens the copy; Delete is the Board's two-step pattern — first click arms,
- * second deletes — so the menu stays open between clicks (`closeOnClick` off)
- * and the arm resets when the menu closes. The arm state lives here, not in
- * the columns memo, so arming doesn't remount the menu. */
+/** Per-row actions menu (mine variant only). Duplicate opens the
+ * project:duplicate dialog; Delete is the Board's two-step pattern — first
+ * click arms, second deletes — so the menu stays open between clicks
+ * (`closeOnClick` off) and the arm resets when the menu closes. The arm
+ * state lives here, not in the columns memo, so arming doesn't remount the
+ * menu. */
 function RowActions({ project }: { project: ProjectsRow }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const [armed, setArmed] = useState(false);
 	const [renameOpen, setRenameOpen] = useState(false);
-
-	const duplicate = useMutation(
-		trpc.projects.duplicate.mutationOptions({
-			onSuccess: async (created) => {
-				await queryClient.invalidateQueries({
-					queryKey: ["collection", "projects"],
-				});
-				toast.success(`Duplicated as “${created.name}”`);
-				navigate({
-					to: "/projects/$projectId",
-					params: { projectId: created.id },
-				});
-			},
-			onError: (error) => toast.error(error.message),
-		}),
-	);
 
 	const remove = useMutation(
 		trpc.projects.delete.mutationOptions({
@@ -112,8 +97,15 @@ function RowActions({ project }: { project: ProjectsRow }) {
 						Rename
 					</DropdownMenuItem>
 					<DropdownMenuItem
-						disabled={duplicate.isPending}
-						onClick={() => duplicate.mutate({ id: project.id })}
+						onClick={() => {
+							navigate({
+								search: ((old: any) => ({
+									...old,
+									dialogKey: "project:duplicate",
+									dialogId: project.id,
+								})) as never,
+							});
+						}}
 					>
 						<CopyIcon />
 						Duplicate

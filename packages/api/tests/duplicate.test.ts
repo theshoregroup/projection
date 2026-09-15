@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { duplicateLines, type DuplicatableLine } from "../src/domain/duplicate";
 
@@ -58,4 +58,52 @@ it("remaps groupId so children point at the copied group, not the source", () =>
 
 it("handles an empty project", () => {
 	expect(duplicateLines([], "new-project")).toEqual([]);
+});
+
+describe("dayOffset shifting", () => {
+	it("shifts dates forward by a positive offset", () => {
+		const lines = [
+			makeLine({ id: "a", startDate: "2026-01-01", endDate: "2026-01-05" }),
+			makeLine({ id: "b", startDate: "2026-02-01", endDate: "2026-04-10" }),
+		];
+		const out = duplicateLines(lines, "new-project", { dayOffset: 4 });
+
+		expect(out[0]?.startDate).toBe("2026-01-05");
+		expect(out[0]?.endDate).toBe("2026-01-09");
+		expect(out[1]?.startDate).toBe("2026-02-05");
+		expect(out[1]?.endDate).toBe("2026-04-14");
+	});
+
+	it("shifts dates backward by a negative offset", () => {
+		const lines = [
+			makeLine({ id: "a", startDate: "2026-01-10", endDate: "2026-01-15" }),
+		];
+		const out = duplicateLines(lines, "new-project", { dayOffset: -3 });
+
+		expect(out[0]?.startDate).toBe("2026-01-07");
+		expect(out[0]?.endDate).toBe("2026-01-12");
+	});
+
+	it("leaves dates unchanged when offset is 0 or omitted", () => {
+		const lines = [
+			makeLine({ id: "a", startDate: "2026-01-01", endDate: "2026-01-05" }),
+		];
+		const withZero = duplicateLines(lines, "new-project", { dayOffset: 0 });
+		expect(withZero[0]?.startDate).toBe("2026-01-01");
+		expect(withZero[0]?.endDate).toBe("2026-01-05");
+
+		const withoutOption = duplicateLines(lines, "new-project");
+		expect(withoutOption[0]?.startDate).toBe("2026-01-01");
+		expect(withoutOption[0]?.endDate).toBe("2026-01-05");
+	});
+
+	it("correctly crosses month and year boundaries", () => {
+		const lines = [
+			makeLine({ id: "a", startDate: "2026-01-30", endDate: "2026-12-31" }),
+		];
+		const out = duplicateLines(lines, "new-project", { dayOffset: 5 });
+
+		expect(out[0]?.startDate).toBe("2026-02-04");
+		expect(out[0]?.endDate).toBe("2027-01-05");
+	});
 });
