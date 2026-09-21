@@ -1,3 +1,4 @@
+import { DEFAULT_PALETTE_ID } from "@projection/db/palettes";
 import { Button } from "@projection/ui/components/button";
 import {
 	Dialog,
@@ -16,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
+import { PalettePicker } from "@/components/palette-picker";
 import { useTRPC } from "@/utils/trpc";
 
 function isoToday(): string {
@@ -41,6 +43,7 @@ export default function CreateProjectDialog({
 	const [description, setDescription] = useState("");
 	const [seedStart, setSeedStart] = useState(isoToday());
 	const [seedEnd, setSeedEnd] = useState(isoPlusDays(90));
+	const [colorPalette, setColorPalette] = useState(DEFAULT_PALETTE_ID);
 
 	const create = useMutation(
 		trpc.projects.create.mutationOptions({
@@ -83,6 +86,7 @@ export default function CreateProjectDialog({
 							description: description.trim() || undefined,
 							seedStart,
 							seedEnd,
+							colorPalette,
 						});
 					}}
 				>
@@ -132,6 +136,7 @@ export default function CreateProjectDialog({
 							End must be on or after Start.
 						</p>
 					) : null}
+					<PalettePicker value={colorPalette} onChange={setColorPalette} />
 					<DialogFooter>
 						<Button type="submit" disabled={!canSubmit}>
 							{create.isPending ? "Creating…" : "Create project"}

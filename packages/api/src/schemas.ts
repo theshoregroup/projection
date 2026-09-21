@@ -1,3 +1,4 @@
+import { DEFAULT_PALETTE_ID, PALETTE_IDS } from "@projection/db/palettes";
 import { z } from "zod";
 
 export const isoDate = z
@@ -15,6 +16,7 @@ export const projectCreateSchema = z
 		description: z.string().max(500).optional(),
 		seedStart: isoDate,
 		seedEnd: isoDate,
+		colorPalette: z.enum(PALETTE_IDS).default(DEFAULT_PALETTE_ID),
 	})
 	.refine((value) => value.seedStart <= value.seedEnd, {
 		message: rangeRefinement.message,
@@ -30,6 +32,7 @@ export const projectUpdateSchema = z.object({
 	// Owner-only (enforced in the router): whether Share Link visitors may
 	// download the Board as a PDF (CONTEXT.md — Share Link).
 	allowVisitorsToExport: z.boolean().optional(),
+	colorPalette: z.enum(PALETTE_IDS).optional(),
 });
 
 export const projectDuplicateSchema = z.object({

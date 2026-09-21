@@ -206,7 +206,7 @@ describe("assigneeColor", () => {
 			"Grace",
 			"Heidi",
 		];
-		const colors = new Set(names.map(assigneeColor));
+		const colors = new Set(names.map((name) => assigneeColor(name)));
 		// 36 slots, 8 names — a broken hash would cluster far tighter than this
 		expect(colors.size).toBeGreaterThanOrEqual(6);
 	});

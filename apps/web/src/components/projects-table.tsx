@@ -1,3 +1,4 @@
+import { getPalette } from "@projection/db/palettes";
 import {
 	CopyIcon,
 	DotsThreeIcon,
@@ -45,6 +46,34 @@ import type { ProjectsRow } from "@/lib/collections";
 import { useTRPC } from "@/utils/trpc";
 
 const columnHelper = createColumnHelper<ProjectsRow>();
+
+/** Mini swatch strip showing a palette's first 8 colours, used in the table. */
+function PaletteSwatch({ paletteId }: { paletteId: string }) {
+	const palette = getPalette(paletteId);
+	const preview = palette.colors.slice(0, 8);
+	return (
+		<span
+			className="inline-flex shrink-0 items-center gap-0.5 rounded-sm border border-border p-0.5"
+			title={palette.label}
+		>
+			{preview.map((colour: string, i: number) => (
+				<span
+					key={`${paletteId}-${i}`}
+					className="inline-block size-2.5 rounded-sm"
+					style={{ backgroundColor: colour }}
+				/>
+			))}
+			<span className="ml-1 whitespace-nowrap text-xs text-muted-foreground">
+				{palette.label}
+				{palette.accessible ? (
+					<span className="ml-0.5 rounded bg-emerald-100 px-0.5 text-[10px] font-medium text-emerald-700">
+						CB
+					</span>
+				) : null}
+			</span>
+		</span>
+	);
+}
 
 /** Per-row actions menu (mine variant only). Duplicate opens the
  * project:duplicate dialog; Delete is the Board's two-step pattern — first
@@ -183,6 +212,10 @@ export default function ProjectsTable({
 						{c.getValue()}
 					</span>
 				),
+			}),
+			columnHelper.accessor("colorPalette", {
+				header: "Palette",
+				cell: (c) => <PaletteSwatch paletteId={c.getValue()} />,
 			}),
 			...(variant === "shared"
 				? [

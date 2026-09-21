@@ -85,6 +85,7 @@ function makeProject(partial: Partial<ProjectsRow>): ProjectsRow {
 		description: null,
 		seedStart: "2026-03-01",
 		seedEnd: "2026-04-01",
+		colorPalette: "catppuccin",
 		organizationId: "o1",
 		shareToken: null,
 		allowVisitorsToExport: false,
@@ -221,6 +222,7 @@ describe("ProjectsTable", () => {
 			id: "p1",
 			name: "Kitchen extension",
 			description: "Ground floor works",
+			colorPalette: "catppuccin",
 		});
 	});
 });

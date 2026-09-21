@@ -99,6 +99,9 @@ importers:
       '@projection/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@projection/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@projection/env':
         specifier: workspace:*
         version: link:../../packages/env

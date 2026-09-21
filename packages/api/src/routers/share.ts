@@ -42,6 +42,7 @@ export const shareRouter = router({
 					description: found.description,
 					seedStart: found.seedStart,
 					seedEnd: found.seedEnd,
+					colorPalette: found.colorPalette,
 					allowVisitorsToExport: found.allowVisitorsToExport,
 				},
 				lines,

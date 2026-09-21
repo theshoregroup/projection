@@ -46,6 +46,7 @@ export interface PdfProject {
 	description?: string | null;
 	seedStart: IsoDate;
 	seedEnd: IsoDate;
+	colorPalette?: string;
 }
 
 /** The Line shape the export draws (the Board's LineRow satisfies this). */
@@ -349,11 +350,13 @@ function BoardSvg({
 	layout,
 	rows,
 	tops,
+	colorPalette,
 }: {
 	layout: PdfLayout;
 	rows: Array<BoardRow<PdfBoardLine>>;
 	/** Per-row top offsets from rowTops() — matches the variable panel rows. */
 	tops: number[];
+	colorPalette?: string;
 }) {
 	const { geom } = layout;
 	const width = layout.timelineWidth;
@@ -422,6 +425,7 @@ function BoardSvg({
 				const bar = barForLine(geom, line);
 				const color = assigneeColor(
 					(line as { assignee?: string | null }).assignee,
+					colorPalette,
 				);
 				const cy =
 					(tops[index] ?? HEADER_HEIGHT) +
@@ -650,6 +654,7 @@ export function BoardPdfDocument({
 							layout={layout}
 							rows={pageRows}
 							tops={rowTops(pageRows)}
+							colorPalette={project.colorPalette}
 						/>
 					</View>
 

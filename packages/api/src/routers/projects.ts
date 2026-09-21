@@ -49,6 +49,7 @@ export const projectsRouter = router({
 					description: input.description ?? null,
 					seedStart: input.seedStart,
 					seedEnd: input.seedEnd,
+					colorPalette: input.colorPalette,
 					shareToken: randomUUID(),
 				})
 				.returning();
@@ -88,6 +89,8 @@ export const projectsRouter = router({
 					seedEnd: nextSeedEnd,
 					allowVisitorsToExport:
 						input.allowVisitorsToExport ?? access.project.allowVisitorsToExport,
+					colorPalette:
+						input.colorPalette ?? access.project.colorPalette,
 				})
 				.where(eq(project.id, input.id))
 				.returning();
@@ -140,6 +143,7 @@ export const projectsRouter = router({
 						description: access.project.description,
 						seedStart: dayOffset !== 0 ? addDays(access.project.seedStart, dayOffset) : access.project.seedStart,
 						seedEnd: dayOffset !== 0 ? addDays(access.project.seedEnd, dayOffset) : access.project.seedEnd,
+						colorPalette: access.project.colorPalette,
 						shareToken: randomUUID(),
 					})
 					.returning();

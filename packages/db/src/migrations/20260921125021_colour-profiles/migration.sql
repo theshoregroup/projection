@@ -1,0 +1,1 @@
+ALTER TABLE "project" ADD COLUMN "color_palette" text DEFAULT 'catppuccin' NOT NULL;

@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { PalettePicker } from "@/components/palette-picker";
 import { useTRPC } from "@/utils/trpc";
 
 export interface RenameProjectDialogProject {
@@ -22,13 +23,14 @@ export interface RenameProjectDialogProject {
 	description: string | null;
 	seedStart: string;
 	seedEnd: string;
+	colorPalette: string;
 }
 
-/** Rename a Project (CONTEXT.md — Project): name and description are editable
- * here; the seed dates are shown read-only because the Timeline Window is
- * derived from the Lines. Both Owners and Editors may edit (the update
- * mutation allows both). Controlled — the caller owns `open` so the dialog
- * can outlive a dropdown menu closing. */
+/** Edit a Project (CONTEXT.md — Project): name, description, and colour
+ * palette are editable here; the seed dates are shown read-only because the
+ * Timeline Window is derived from the Lines. Both Owners and Editors may edit
+ * (the update mutation allows both). Controlled — the caller owns `open` so
+ * the dialog can outlive a dropdown menu closing. */
 export default function RenameProjectDialog({
 	project,
 	open,
@@ -42,6 +44,7 @@ export default function RenameProjectDialog({
 	const queryClient = useQueryClient();
 	const [name, setName] = useState(project.name);
 	const [description, setDescription] = useState(project.description ?? "");
+	const [colorPalette, setColorPalette] = useState(project.colorPalette);
 
 	// Resync the fields from the Project each time the dialog opens, so a
 	// discarded edit or a remote change never lingers in the form.
@@ -49,8 +52,9 @@ export default function RenameProjectDialog({
 		if (open) {
 			setName(project.name);
 			setDescription(project.description ?? "");
+			setColorPalette(project.colorPalette);
 		}
-	}, [open, project.name, project.description]);
+	}, [open, project.name, project.description, project.colorPalette]);
 
 	const update = useMutation(
 		trpc.projects.update.mutationOptions({
@@ -74,7 +78,8 @@ export default function RenameProjectDialog({
 	const trimmed = name.trim();
 	const dirty =
 		trimmed !== project.name ||
-		(description.trim() || null) !== (project.description ?? null);
+		(description.trim() || null) !== (project.description ?? null) ||
+		colorPalette !== project.colorPalette;
 	const canSubmit = trimmed.length > 0 && dirty && !update.isPending;
 
 	return (
@@ -96,6 +101,7 @@ export default function RenameProjectDialog({
 							id: project.id,
 							name: trimmed,
 							description: description.trim() || null,
+							colorPalette,
 						});
 					}}
 				>
@@ -141,6 +147,7 @@ export default function RenameProjectDialog({
 							/>
 						</div>
 					</div>
+					<PalettePicker value={colorPalette} onChange={setColorPalette} />
 					<DialogFooter>
 						<Button type="submit" disabled={!canSubmit}>
 							{update.isPending ? "Saving…" : "Save"}

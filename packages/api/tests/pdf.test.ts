@@ -43,6 +43,7 @@ const project = {
 	description: "Marketing site rebuild",
 	seedStart: "2026-03-01",
 	seedEnd: "2026-03-31",
+	colorPalette: "catppuccin",
 };
 
 describe("pdfLayout scale-to-fit", () => {

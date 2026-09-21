@@ -8,6 +8,9 @@
 		"./helpers": {
 			"default": "./src/helpers.ts"
 		},
+		"./palettes": {
+			"default": "./src/palettes.ts"
+		},
 		"./schema/*": {
 			"default": "./src/schema/*.ts"
 		}
