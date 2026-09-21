@@ -3,7 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
-  '@depot/cli': true
+  "@depot/cli": true
   esbuild: true
   protobufjs: true
   sharp: true
@@ -23,4 +23,5 @@ catalog:
   better-auth: 1.7.2
   "@types/react": ^19.2.17
   "@types/react-dom": ^19.2.3
+  trigger.dev: 4.6.3 # Ensure /sdk and /build in tasks are kept in step
   drizzle-orm: 1.0.0-rc.4

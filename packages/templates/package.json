@@ -16,7 +16,7 @@
 		"date-fns": "^4.4.0",
 		"react": "catalog:",
 		"react-dom": "catalog:",
-		"trigger.dev": "4.4.3",
+		"trigger.dev": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
