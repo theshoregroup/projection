@@ -21,7 +21,7 @@
 	},
 	"devDependencies": {
 		"@projection/config": "workspace:*",
-		"@react-email/ui": "^6.5.0",
+		"@react-email/ui": "^6.9.5",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"react-email": "6.5.0",

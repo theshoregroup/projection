@@ -26,11 +26,11 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.13",
+		"@biomejs/biome": "^2.5.14",
 		"@projection/config": "workspace:*",
 		"@types/node": "catalog:",
-		"tsx": "^4.23.1",
-		"turbo": "^2.10.7",
+		"tsx": "^4.23.15",
+		"turbo": "^2.11.2",
 		"typescript": "catalog:",
 		"vercel": "^54.21.1"
 	},

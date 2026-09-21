@@ -18,7 +18,7 @@
 		"@projection/db": "workspace:*",
 		"@projection/env": "workspace:*",
 		"@projection/tasks": "workspace:*",
-		"@react-pdf/renderer": "^4.7.0",
+		"@react-pdf/renderer": "^4.9.0",
 		"@trpc/client": "catalog:",
 		"@trpc/server": "catalog:",
 		"dotenv": "catalog:",

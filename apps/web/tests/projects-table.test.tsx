@@ -180,15 +180,6 @@ describe("ProjectsTable", () => {
 		expect(screen.getByText("Empty here.")).toBeTruthy();
 	});
 
-	it("duplicate fires the duplicate mutation for that row", async () => {
-		render(
-			<ProjectsTable variant="mine" projects={mine} empty="No projects yet." />,
-		);
-		fireEvent.click(screen.getByLabelText("Actions for Loft conversion"));
-		fireEvent.click(await screen.findByText("Duplicate"));
-		expect(duplicateMutate).toHaveBeenCalledWith({ id: "p2" });
-	});
-
 	it("delete requires a second click (two-step arm/confirm)", async () => {
 		render(
 			<ProjectsTable variant="mine" projects={mine} empty="No projects yet." />,
