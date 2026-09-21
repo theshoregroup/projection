@@ -35,6 +35,7 @@
 		"@types/node": "catalog:",
 		"@types/pg": "^8.23.1",
 		"drizzle-kit": "1.0.0-rc.3",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"vitest": "^4.1.11"
 	}
 }
