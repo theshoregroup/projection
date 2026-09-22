@@ -5,8 +5,8 @@ import { and, eq, isNull } from "drizzle-orm";
 /** Look up the org's logo when show_org_logo_on_exports is true.
  *  Returns undefined when the setting is off, the org has no logo, or the
  *  project has no org. The logo value is expected to be a data URI (set via
- *  the settings page) so react-pdf can render it directly — no server-side
- *  format conversion needed. */
+ *  the settings page) so the PDF renderer (pdf-lib) can embed it directly —
+ *  no server-side format conversion needed. */
 export async function resolveOrgLogo(
 	db: DrizzleDbType,
 	orgId: string | null,

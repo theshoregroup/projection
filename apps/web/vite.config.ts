@@ -17,7 +17,9 @@ export default defineConfig(({ command }) => ({
 		// (tslib.js) when code-split into the SSR router chunk, producing
 		// `__toESM(__commonJSMin(factory)).default` where the lazy factory is
 		// never invoked — crashing the whole bundle at import time.
-		alias: { tslib: "tslib/tslib.es6.mjs" },
+		// The .js (not .mjs) entry: both tslib majors ship it, while only v2
+		// ships .mjs — pdf-lib pins tslib@1.
+		alias: { tslib: "tslib/tslib.es6.js" },
 	},
 	plugins: [
 		devtoolsJson({

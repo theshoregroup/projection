@@ -6,11 +6,9 @@ import { deriveWindow } from "../domain/dates";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { publicProcedure, router } from "../index";
 import { resolveOrgLogo } from "../lib/org-logo";
-import {
-	PDF_PAGE_SIZES,
-	type PdfPageSize,
-	renderBoardPdf,
-} from "../pdf/board-pdf";
+// Static import is limited to the tiny layout vocabulary; the pdf-lib
+// renderer is lazy-loaded inside exportPdfByToken.
+import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 
 /** Public, unauthenticated read-only Board via a Share Link token (CONTEXT.md). */
 export const shareRouter = router({
@@ -85,6 +83,7 @@ export const shareRouter = router({
 					.orderBy(asc(line.sortOrder)),
 			);
 			const orgLogoUrl = await resolveOrgLogo(ctx.db, found.organizationId);
+			const { renderBoardPdf } = await import("../pdf/render");
 			return renderBoardPdf(found, lines, input.pageSize as PdfPageSize, {
 				orgLogoUrl,
 			});

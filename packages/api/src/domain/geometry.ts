@@ -1,6 +1,8 @@
 // Pure Board geometry (ADR 0001): lines + timeline window + zoom → positions.
-// The SVG renderer in the browser and the react-pdf renderer (pdf/board-pdf)
+// The SVG renderer in the browser and the pdf-lib renderer (pdf/render.ts)
 // both consume these functions, so the Board and its export can never drift.
+// Paths produced here (groupCapPaths) are y-down SVG convention; the PDF
+// renderer flips them (flipSvgPathY) onto the PDF's y-up page.
 
 import { addDays, diffDays, type IsoDate } from "./dates";
 

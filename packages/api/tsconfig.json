@@ -6,6 +6,9 @@
 		"sourceMap": true,
 		"outDir": "dist",
 		"composite": true,
+		// tsc follows workspace source imports into @projection/tasks →
+		// @projection/templates, which contain .tsx email templates — jsx must
+		// stay enabled even though the api package itself has no tsx files.
 		"jsx": "react-jsx"
 	}
 }

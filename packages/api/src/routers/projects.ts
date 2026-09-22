@@ -14,11 +14,10 @@ import {
 	loadProjectForUser,
 } from "../lib/access";
 import { resolveOrgLogo } from "../lib/org-logo";
-import {
-	PDF_PAGE_SIZES,
-	type PdfPageSize,
-	renderBoardPdf,
-} from "../pdf/board-pdf";
+// Only the page-size vocabulary is imported statically — the renderer
+// (pdf-lib) is lazy-loaded inside exportPdf so it never weighs down, or
+// breaks, unrelated requests.
+import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 import {
 	projectCreateSchema,
 	projectDuplicateSchema,
@@ -89,8 +88,7 @@ export const projectsRouter = router({
 					seedEnd: nextSeedEnd,
 					allowVisitorsToExport:
 						input.allowVisitorsToExport ?? access.project.allowVisitorsToExport,
-					colorPalette:
-						input.colorPalette ?? access.project.colorPalette,
+					colorPalette: input.colorPalette ?? access.project.colorPalette,
 				})
 				.where(eq(project.id, input.id))
 				.returning();
@@ -141,8 +139,14 @@ export const projectsRouter = router({
 						organizationId: access.project.organizationId,
 						name: input.name ?? `${access.project.name} (copy)`,
 						description: access.project.description,
-						seedStart: dayOffset !== 0 ? addDays(access.project.seedStart, dayOffset) : access.project.seedStart,
-						seedEnd: dayOffset !== 0 ? addDays(access.project.seedEnd, dayOffset) : access.project.seedEnd,
+						seedStart:
+							dayOffset !== 0
+								? addDays(access.project.seedStart, dayOffset)
+								: access.project.seedStart,
+						seedEnd:
+							dayOffset !== 0
+								? addDays(access.project.seedEnd, dayOffset)
+								: access.project.seedEnd,
 						colorPalette: access.project.colorPalette,
 						shareToken: randomUUID(),
 					})
@@ -215,6 +219,7 @@ export const projectsRouter = router({
 				ctx.db,
 				access.project.organizationId,
 			);
+			const { renderBoardPdf } = await import("../pdf/render");
 			return renderBoardPdf(
 				access.project,
 				lines,
