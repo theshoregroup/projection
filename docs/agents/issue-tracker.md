@@ -1,30 +1,29 @@
-# Issue tracker: Local Markdown
+# Issue tracker: Linear (team PROJ)
 
-Issues and specs (you may know a spec as a PRD) for this repo live as markdown files in `.scratch/`.
+Issues and specs for this repo live in **Linear**, team **PROJ**.
 
-## Conventions
+## CLI conventions
 
-- One feature per directory: `.scratch/<feature-slug>/`
-- The spec is `.scratch/<feature-slug>/spec.md`
-- Implementation issues are one file per ticket at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` — never a single combined tickets file
-- Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
-- Comments and conversation history append to the bottom of the file under a `## Comments` heading
+- **Create**: `linear issue create --team PROJ --title "…" [-d "…"]`
+- **View**: `linear issue view <PROJ-NNN>`
+- **Update**: `linear issue update <PROJ-NNN> [--state started] [-l <label>]`
+- **Comment**: `linear issue comment add <PROJ-NNN> --body "…"`
+- **List**: `linear issue mine --team PROJ [--state started]`
+
+Issue IDs follow the pattern `PROJ-NNN`.
+
+## Triage state
+
+Triage state is recorded via Linear labels/states. See `triage-labels.md` for the five canonical role strings.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a new file under `.scratch/<feature-slug>/` (creating the directory if needed).
+Create a Linear issue on team PROJ using the `linear` CLI. If a spec (PRD) is involved, attach it as the issue description or link to it from the issue body.
 
 ## When a skill says "fetch the relevant ticket"
 
-Read the file at the referenced path. The user will normally pass the path or the issue number directly.
+Use `linear issue view <PROJ-NNN>`. The user will normally provide the issue ID or the current branch will encode it.
 
-## Wayfinding operations
+## Linking PRs
 
-Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
-
-- **Map**: `.scratch/<effort>/map.md` — the Notes / Decisions-so-far / Fog body.
-- **Child ticket**: `.scratch/<effort>/issues/NN-<slug>.md`, numbered from `01`, with the question in the body. A `Type:` line records the ticket type (`research`/`prototype`/`grilling`/`task`); a `Status:` line records `claimed`/`resolved`.
-- **Blocking**: a `Blocked by: NN, NN` line near the top. A ticket is unblocked when every file it lists is `resolved`.
-- **Frontier**: scan `.scratch/<effort>/issues/` for files that are open, unblocked, and unclaimed; first by number wins.
-- **Claim**: set `Status: claimed` and save before any work.
-- **Resolve**: append the answer under an `## Answer` heading, set `Status: resolved`, then append a context pointer (gist + link) to the map's Decisions-so-far in `map.md`.
+When creating a GitHub PR for a Linear issue, name the branch to include the issue ID (e.g. `proj-123-add-foo`) so the PR is automatically linked.
