@@ -32,8 +32,7 @@
 		"@types/node": "catalog:",
 		"tsx": "^4.23.15",
 		"turbo": "^2.11.2",
-		"typescript": "catalog:",
-		"vercel": "^54.21.1"
+		"typescript": "catalog:"
 	},
 	"packageManager": "pnpm@11.15.1"
 }
