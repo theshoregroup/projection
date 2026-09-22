@@ -261,21 +261,40 @@ function drawPanel(
 			rowHeightFor(lastRow.line, lastRow.depth)
 		: HEADER_HEIGHT;
 
+	// Shaded columns (Assignee + End) drawn first so text paints on top
+	const colorShadedColumn = hexColor(COLOR_WEEKEND);
+	page.drawRectangle({
+		x: panelX + ITEM_COL_WIDTH,
+		y: pdfY(contentHeight),
+		width: ASSIGNEE_COL_WIDTH,
+		height: contentHeight,
+		color: colorShadedColumn,
+	});
+	page.drawRectangle({
+		x: panelX + ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH,
+		y: pdfY(contentHeight),
+		width: DATE_COL_WIDTH,
+		height: contentHeight,
+		color: colorShadedColumn,
+	});
+
 	// Header labels (bottom-aligned with 6pt padding, like the Board's panel)
 	const headerBaseline = pdfY(HEADER_HEIGHT) + 8;
-	const headers: Array<[string, number]> = [
-		["Item", 4],
-		["Assignee", ITEM_COL_WIDTH],
-		["Start", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH],
-		["End", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH],
+	const CELL_PAD = 4;
+	const headerLabels: Array<[string, number, number, boolean]> = [
+		// [label, xOffset, columnWidth, isShaded] — shading gets darker text
+		["Item", 0, ITEM_COL_WIDTH, false],
+		["Assignee", ITEM_COL_WIDTH, ASSIGNEE_COL_WIDTH, true],
+		["Start", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH, DATE_COL_WIDTH, false],
+		["End", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH, DATE_COL_WIDTH, true],
 	];
-	for (const [label, offset] of headers) {
+	for (const [label, offset, _colW, shaded] of headerLabels) {
 		page.drawText(label, {
-			x: panelX + offset,
+			x: panelX + offset + CELL_PAD,
 			y: headerBaseline,
 			size: 8,
 			font: ctx.font,
-			color: colorMuted,
+			color: shaded ? colorText : colorMuted,
 		});
 	}
 	// Header bottom border + panel right border
@@ -320,33 +339,32 @@ function drawPanel(
 
 		drawCell(
 			line.item,
-			ITEM_COL_WIDTH - row.depth * INDENT_PX,
+			ITEM_COL_WIDTH - CELL_PAD * 2 - row.depth * INDENT_PX,
 			ROW_TEXT_FONT_SIZE,
-			panelX + 4 + row.depth * INDENT_PX,
+			panelX + CELL_PAD + row.depth * INDENT_PX,
 			line.isGroup ? ctx.fontBold : ctx.font,
 			colorText,
 		);
 		drawCell(
 			line.assignee ?? "",
-			ASSIGNEE_COL_WIDTH,
+			ASSIGNEE_COL_WIDTH - CELL_PAD * 2,
 			ASSIGNEE_FONT_SIZE,
-			panelX + ITEM_COL_WIDTH,
+			panelX + ITEM_COL_WIDTH + CELL_PAD,
 			ctx.font,
-			colorMuted,
+			colorText,
 		);
 
-		// Dates are centered within their columns and never wrap
-		for (const [date, colOffset] of [
-			[line.startDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH],
-			[line.endDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH],
+		// Dates are left-aligned with padding; End column uses darker text on shading
+		for (const [date, colOffset, shaded] of [
+			[line.startDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH, false],
+			[line.endDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH, true],
 		] as const) {
-			const w = ctx.font.widthOfTextAtSize(date, DATE_FONT_SIZE);
 			page.drawText(date, {
-				x: panelX + colOffset + (DATE_COL_WIDTH - w) / 2,
+				x: panelX + colOffset + CELL_PAD,
 				y: rowCenter - DATE_FONT_SIZE * 0.35,
 				size: DATE_FONT_SIZE,
 				font: ctx.font,
-				color: colorMuted,
+				color: shaded ? colorText : colorMuted,
 			});
 		}
 	}

@@ -51,9 +51,9 @@ export const PAGE_DIMENSIONS: Record<
 export const PAGE_MARGIN = 36;
 export const TITLE_BLOCK_HEIGHT = 40;
 export const FOOTER_HEIGHT = 24;
-export const ASSIGNEE_COL_WIDTH = 80;
-export const DATE_COL_WIDTH = 64;
-export const ITEM_COL_WIDTH = 140;
+export const ASSIGNEE_COL_WIDTH = 60;
+export const DATE_COL_WIDTH = 48;
+export const ITEM_COL_WIDTH = 100;
 export const PANEL_WIDTH =
 	ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH * 2;
 const MIN_PDF_DAY_WIDTH = 1.5;
