@@ -5,15 +5,22 @@ import {
 	PDFRawStream,
 } from "pdf-lib";
 import { describe, expect, it } from "vitest";
-import { tickUnitFor } from "../src/domain/geometry";
+import { assigneeColor } from "../src/domain/colors";
+import { deriveWindow } from "../src/domain/dates";
+import { HEADER_HEIGHT, tickUnitFor } from "../src/domain/geometry";
+import { buildRows } from "../src/domain/groups";
 import {
+	BAR_PAD,
 	bodyRowSpace,
+	PAGE_MARGIN,
 	PDF_PAGE_SIZES,
+	PDF_ROW_HEIGHT,
 	type PdfBoardLine,
 	paginateRows,
 	pdfLayout,
 	rowHeightFor,
 	rowTops,
+	TITLE_BLOCK_HEIGHT,
 	textLines,
 	wrapText,
 } from "../src/pdf/layout";
@@ -80,6 +87,114 @@ function drawnText(contentStream: string): string {
 		if (match[1]) parts.push(Buffer.from(match[1], "hex").toString("latin1"));
 	}
 	return parts.join("\n");
+}
+
+/** #rrggbb → the [r, g, b] triple (0–1) pdf-lib's `rg`/`RG` operators use. */
+function hexToRgbTriple(hex: string): [number, number, number] {
+	const h = hex.replace("#", "");
+	return [
+		Number.parseInt(h.slice(0, 2), 16) / 255,
+		Number.parseInt(h.slice(2, 4), 16) / 255,
+		Number.parseInt(h.slice(4, 6), 16) / 255,
+	];
+}
+
+/** Every top-level `q ... Q` graphics-state block in a content stream, as
+ * raw operator text — pdf-lib wraps each shape it draws in exactly one such
+ * block, never nested, so this cleanly isolates one drawn shape at a time. */
+function qBlocks(content: string): string[] {
+	const blocks: string[] = [];
+	const re = /(?:^|\n)q\n([\s\S]*?)\nQ(?:\n|$)/g;
+	for (const match of content.matchAll(re)) {
+		if (match[1] !== undefined) blocks.push(match[1]);
+	}
+	return blocks;
+}
+
+/** Does this block set the fill color to (approximately) this RGB triple? */
+function blockFillsWith(
+	block: string,
+	[r, g, b]: [number, number, number],
+): boolean {
+	for (const match of block.matchAll(
+		/(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) rg\b/g,
+	)) {
+		const [, mr, mg, mb] = match;
+		if (
+			Math.abs(Number(mr) - r) < 1e-6 &&
+			Math.abs(Number(mg) - g) < 1e-6 &&
+			Math.abs(Number(mb) - b) < 1e-6
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/** Replays a single `q ... Q` block's `cm`/`m`/`l`/`c` operators (starting
+ * from the identity matrix, since pdf-lib always leaves the CTM at identity
+ * between top-level blocks) and returns every path point in *device* space
+ * — i.e. where it actually lands on the page, exactly as a PDF viewer would
+ * place it. This is what lets a test tell "drawn, but off-page" apart from
+ * "drawn where the layout said to". */
+function blockPointsDeviceSpace(
+	block: string,
+): Array<{ x: number; y: number }> {
+	type Matrix = [number, number, number, number, number, number];
+	const tokens = block.match(/-?\d*\.?\d+(?:[eE]-?\d+)?|[A-Za-z]+\*?/g) ?? [];
+	let ctm: Matrix = [1, 0, 0, 1, 0, 0];
+	const nums: number[] = [];
+	const points: Array<{ x: number; y: number }> = [];
+
+	const multiply = (m: Matrix, c: Matrix): Matrix => {
+		const [a, b, cc, d, e, f] = m;
+		const [a2, b2, c2, d2, e2, f2] = c;
+		return [
+			a * a2 + b * c2,
+			a * b2 + b * d2,
+			cc * a2 + d * c2,
+			cc * b2 + d * d2,
+			e * a2 + f * c2 + e2,
+			e * b2 + f * d2 + f2,
+		];
+	};
+	const apply = (m: Matrix, x: number, y: number) => ({
+		x: m[0] * x + m[2] * y + m[4],
+		y: m[1] * x + m[3] * y + m[5],
+	});
+
+	for (const tok of tokens) {
+		if (/^-?\d/.test(tok)) {
+			nums.push(Number(tok));
+			continue;
+		}
+		switch (tok) {
+			case "cm": {
+				const args = nums.splice(-6) as unknown as Matrix;
+				if (args.length === 6) ctm = multiply(args, ctm);
+				break;
+			}
+			case "m":
+			case "l": {
+				const [x, y] = nums.splice(-2);
+				if (x !== undefined && y !== undefined) points.push(apply(ctm, x, y));
+				break;
+			}
+			case "c": {
+				const args = nums.splice(-6);
+				if (args.length === 6) {
+					const [x1, y1, x2, y2, x3, y3] = args as number[];
+					points.push(apply(ctm, x1 as number, y1 as number));
+					points.push(apply(ctm, x2 as number, y2 as number));
+					points.push(apply(ctm, x3 as number, y3 as number));
+				}
+				break;
+			}
+			default:
+				nums.length = 0;
+		}
+	}
+	return points;
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +436,59 @@ describe("renderBoardPdf", () => {
 		// but the decoded content stream references them by resource name.
 		expect(stream).toMatch(/\/Helvetica-\w+ \d+ Tf/);
 		expect(stream).toMatch(/\/Helvetica-Bold-\w+ \d+ Tf/);
+	});
+
+	it("draws a line's bar on the visible page, where the layout put it", async () => {
+		// Bug repro: pdf-lib's drawSvgPath always flips the Y axis (it expects
+		// SVG-style y-down input), but render.ts's roundedRectPath already
+		// hands it real page (y-up) coordinates. The result is flipped a
+		// second time and painted below the page's bottom edge -- invisible,
+		// even though the content stream contains a perfectly well-formed
+		// filled path.
+		const line = makeLine({
+			item: "Design",
+			assignee: "Liam",
+			percentComplete: 0,
+		});
+		const { data } = await renderBoardPdf(project, [line], "A3");
+		const [stream] = await contentStreams(data);
+		const content = stream ?? "";
+
+		// Independent ground truth: the same public layout functions
+		// renderBoardPdf itself calls to decide where this bar's row sits.
+		const window = deriveWindow([line], project);
+		const layout = pdfLayout("A3", window);
+		const rows = buildRows([line]);
+		const tops = rowTops(rows);
+		const rowH = rowHeightFor(line, 0);
+		const cySvg = (tops[0] ?? HEADER_HEIGHT) + rowH / 2;
+		const barH = PDF_ROW_HEIGHT - BAR_PAD * 2;
+		const barTopSvg = cySvg - barH / 2;
+		const contentTop = layout.pageHeight - PAGE_MARGIN;
+		const boardTop = contentTop - TITLE_BLOCK_HEIGHT;
+		const expectedTopY = boardTop - barTopSvg;
+		const expectedBottomY = boardTop - (barTopSvg + barH);
+
+		// Find the bar's own fill block by its assignee color, and read back
+		// where pdf-lib actually painted it (device space, as a viewer sees it).
+		const barColor = hexToRgbTriple(
+			assigneeColor(line.assignee, project.colorPalette),
+		);
+		const block = qBlocks(content).find((b) => blockFillsWith(b, barColor));
+		expect(block).toBeDefined();
+		const points = blockPointsDeviceSpace(block ?? "");
+		expect(points.length).toBeGreaterThan(0);
+
+		const ys = points.map((p) => p.y);
+		const minY = Math.min(...ys);
+		const maxY = Math.max(...ys);
+
+		// The bar must land on the visible page...
+		expect(minY).toBeGreaterThanOrEqual(0);
+		expect(maxY).toBeLessThanOrEqual(layout.pageHeight);
+		// ...specifically inside the row the layout laid it out for.
+		expect(minY).toBeCloseTo(expectedBottomY, 1);
+		expect(maxY).toBeCloseTo(expectedTopY, 1);
 	});
 
 	it("packs ~45 thinner rows onto an A3 landscape page", () => {

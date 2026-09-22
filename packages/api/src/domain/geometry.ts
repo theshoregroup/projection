@@ -2,7 +2,8 @@
 // The SVG renderer in the browser and the pdf-lib renderer (pdf/render.ts)
 // both consume these functions, so the Board and its export can never drift.
 // Paths produced here (groupCapPaths) are y-down SVG convention; the PDF
-// renderer flips them (flipSvgPathY) onto the PDF's y-up page.
+// renderer passes them to drawSvgPath (which applies its own y-flip) with an
+// appropriate y offset.
 
 import { addDays, diffDays, type IsoDate } from "./dates";
 

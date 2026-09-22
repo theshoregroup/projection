@@ -72,14 +72,22 @@ const COLOR_TEXT = "#1c1917";
 //
 // The layout layer computes top-down ("SVG") coordinates: svgY = 0 at the
 // board's top edge, growing downward. PDF pages are y-up (origin at the
-// bottom-left), so every y is flipped at draw time via pdfY(). X coordinates
-// carry over unchanged; the timeline sits PANEL_WIDTH right of the margin.
+// bottom-left), so every y is flipped at draw time via pdfY() for native
+// pdf-lib draws (drawText, drawLine, drawRectangle). For drawSvgPath calls
+// (bars, caps, diamonds), we pass raw SVG coordinates and set the y offset
+// to boardTop — drawSvgPath internally applies scale(1, -1) to flip the
+// y axis, which converts SVG y-down to PDF y-up correctly in one step.
+// X coordinates carry over unchanged; the timeline sits PANEL_WIDTH right
+// of the margin.
 
-/** pdf-lib paths are y-up, but the shared geometry module (groupCapPaths)
- * produces y-down SVG path strings. Flip every y coordinate around the
- * board's top edge. Only the M/L/Z absolute commands geometry.ts generates
- * are supported — anything else throws so drift between the renderers is
- * loud, not silently mirrored. */
+/** Flip every y coordinate around the board's top edge (SVG y-down → PDF
+ * y-up). Kept for backwards compatibility and tests; the renderer no longer
+ * uses this — drawSvgPath applies its own y-flip internally, so passing
+ * raw SVG coordinates with a y offset of boardTop is sufficient.
+ *
+ * Only the M/L/Z absolute commands geometry.ts generates are supported —
+ * anything else throws so drift between the renderers is loud, not silently
+ * mirrored. */
 export function flipSvgPathY(path: string, boardTop: number): string {
 	const tokens = path.trim().split(/\s+/);
 	const out: string[] = [];
@@ -108,9 +116,10 @@ export function flipSvgPathY(path: string, boardTop: number): string {
 	return out.join(" ");
 }
 
-/** Rounded-rectangle path (cubic-bezier corners) in PDF coordinates; x/y is
- * the rect's bottom-left. pdf-lib's drawRectangle has no corner radius, and
- * the Board's bars are visibly rounded, so we path them instead. */
+/** Rounded-rectangle path (cubic-bezier corners) in SVG coordinates (y-down);
+ * x/y is the rect's top-left. Passed to drawSvgPath, which flips y internally
+ * to land on the PDF's y-up page. pdf-lib's drawRectangle has no corner
+ * radius, and the Board's bars are visibly rounded, so we path them instead. */
 function roundedRectPath(
 	x: number,
 	y: number,
@@ -420,16 +429,18 @@ function drawTimeline(
 			const barX = bar.x + BAR_INSET;
 			const barW = Math.max(bar.width - BAR_INSET * 2, 2);
 			page.drawSvgPath(
-				roundedRectPath(tx(barX), pdfY(capTop + 6), barW, 6, 1.5),
-				{ color, opacity: 0.9 },
+				roundedRectPath(barX, capTop, barW, 6, 1.5),
+				{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color, opacity: 0.9 },
 			);
 			const caps = groupCapPaths(bar.x, bar.width, capTop);
-			page.drawSvgPath(flipSvgPathY(caps.left, boardTop), {
+			page.drawSvgPath(caps.left, {
 				x: PAGE_MARGIN + PANEL_WIDTH,
+				y: boardTop,
 				color,
 			});
-			page.drawSvgPath(flipSvgPathY(caps.right, boardTop), {
+			page.drawSvgPath(caps.right, {
 				x: PAGE_MARGIN + PANEL_WIDTH,
+				y: boardTop,
 				color,
 			});
 			if (note) {
@@ -445,8 +456,9 @@ function drawTimeline(
 		}
 
 		if (bar.isMilestone) {
-			page.drawSvgPath(flipSvgPathY(pdfDiamondPath(bar.x, cy), boardTop), {
+			page.drawSvgPath(pdfDiamondPath(bar.x, cy), {
 				x: PAGE_MARGIN + PANEL_WIDTH,
+				y: boardTop,
 				color,
 			});
 			if (note) {
@@ -469,19 +481,19 @@ function drawTimeline(
 		const barH = PDF_ROW_HEIGHT - BAR_PAD * 2;
 		const barTopSvg = cy - barH / 2;
 		page.drawSvgPath(
-			roundedRectPath(tx(barX), pdfY(barTopSvg + barH), barW, barH, BAR_RADIUS),
-			{ color, opacity: 0.85 },
+			roundedRectPath(barX, barTopSvg, barW, barH, BAR_RADIUS),
+			{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color, opacity: 0.85 },
 		);
 		if (percentComplete > 0) {
 			page.drawSvgPath(
 				roundedRectPath(
-					tx(barX),
-					pdfY(barTopSvg + barH),
+					barX,
+					barTopSvg,
 					(barW * percentComplete) / 100,
 					barH,
 					BAR_RADIUS,
 				),
-				{ color: rgb(0, 0, 0), opacity: 0.35 },
+				{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color: rgb(0, 0, 0), opacity: 0.35 },
 			);
 		}
 		if (note) {
