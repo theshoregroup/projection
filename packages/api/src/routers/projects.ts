@@ -14,11 +14,8 @@ import {
 	loadProjectForUser,
 } from "../lib/access";
 import { resolveOrgLogo } from "../lib/org-logo";
-import {
-	PDF_PAGE_SIZES,
-	type PdfPageSize,
-	renderBoardPdf,
-} from "../pdf/board-pdf";
+import { posthog } from "@projection/auth/posthog";
+import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 import {
 	projectCreateSchema,
 	projectDuplicateSchema,
@@ -53,7 +50,22 @@ export const projectsRouter = router({
 					shareToken: randomUUID(),
 				})
 				.returning();
-			return created;
+
+			if (created) {
+				posthog.capture({
+					event: "project_created",
+					distinctId: ctx.session.user.id,
+					properties: {
+						project_id: created.id,
+						has_description: input.description
+							? input.description.trim().length > 0
+							: false,
+						color_palette: created.colorPalette,
+					},
+				});
+			}
+
+			return created!;
 		}),
 
 	update: protectedProcedure
@@ -89,8 +101,7 @@ export const projectsRouter = router({
 					seedEnd: nextSeedEnd,
 					allowVisitorsToExport:
 						input.allowVisitorsToExport ?? access.project.allowVisitorsToExport,
-					colorPalette:
-						input.colorPalette ?? access.project.colorPalette,
+					colorPalette: input.colorPalette ?? access.project.colorPalette,
 				})
 				.where(eq(project.id, input.id))
 				.returning();
@@ -107,6 +118,13 @@ export const projectsRouter = router({
 			);
 			assertOwner(access.role);
 			await ctx.db.delete(project).where(eq(project.id, input.id));
+
+			posthog.capture({
+				event: "project_deleted",
+				distinctId: ctx.session.user.id,
+				properties: { project_id: input.id },
+			});
+
 			return { id: input.id };
 		}),
 
@@ -141,8 +159,14 @@ export const projectsRouter = router({
 						organizationId: access.project.organizationId,
 						name: input.name ?? `${access.project.name} (copy)`,
 						description: access.project.description,
-						seedStart: dayOffset !== 0 ? addDays(access.project.seedStart, dayOffset) : access.project.seedStart,
-						seedEnd: dayOffset !== 0 ? addDays(access.project.seedEnd, dayOffset) : access.project.seedEnd,
+						seedStart:
+							dayOffset !== 0
+								? addDays(access.project.seedStart, dayOffset)
+								: access.project.seedStart,
+						seedEnd:
+							dayOffset !== 0
+								? addDays(access.project.seedEnd, dayOffset)
+								: access.project.seedEnd,
 						colorPalette: access.project.colorPalette,
 						shareToken: randomUUID(),
 					})
@@ -154,6 +178,17 @@ export const projectsRouter = router({
 				if (copied.length > 0) {
 					await tx.insert(line).values(copied);
 				}
+
+				posthog.capture({
+					event: "project_duplicated",
+					distinctId: ctx.session.user.id,
+					properties: {
+						source_project_id: input.id,
+						new_project_id: created.id,
+						start_date_shifted: dayOffset !== 0,
+					},
+				});
+
 				return created;
 			});
 		}),
@@ -215,6 +250,18 @@ export const projectsRouter = router({
 				ctx.db,
 				access.project.organizationId,
 			);
+			const { renderBoardPdf } = await import("../pdf/render");
+
+			posthog.capture({
+				event: "project_pdf_exported",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.id,
+					page_size: input.pageSize,
+					source: "member",
+				},
+			});
+
 			return renderBoardPdf(
 				access.project,
 				lines,
@@ -237,6 +284,13 @@ export const projectsRouter = router({
 				.update(project)
 				.set({ shareToken })
 				.where(eq(project.id, input.id));
+
+			posthog.capture({
+				event: "share_link_regenerated",
+				distinctId: ctx.session.user.id,
+				properties: { project_id: input.id },
+			});
+
 			return { shareToken };
 		}),
 });

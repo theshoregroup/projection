@@ -1,4 +1,4 @@
-import { initTRPC, type TRPC_ERROR_CODE_NUMBER, TRPCError } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import SuperJSON from "superjson";
 import z, { ZodError } from "zod";
 import type { Context } from "./context";
@@ -11,12 +11,10 @@ export const t = initTRPC.context<Context>().create({
 		// into the error message
 
 		const rootError = error.cause;
-		const returnedErrorCode: TRPC_ERROR_CODE_NUMBER = shape.code;
-		const returnedErrorMessage = shape.message;
 
 		return {
-			code: returnedErrorCode,
-			message: returnedErrorMessage,
+			code: shape.code,
+			message: shape.message,
 
 			data: {
 				...shape.data,

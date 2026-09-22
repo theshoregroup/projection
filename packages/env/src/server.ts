@@ -35,6 +35,8 @@ if (dummyEnv) {
 		ADMIN_EMAILS: "admin@example.com",
 		TRIGGER_PROJECT_ID: "trdev_29392u3",
 		TRIGGER_SECRET_KEY: "some-random-secret-dowijndnaufheufhejnfuisefuhef",
+		VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: "phx_dummy_token",
+		VITE_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com",
 	};
 
 	process.env = { ...process.env, ...toSet };
@@ -74,6 +76,10 @@ export const env = createEnv({
 		ADMIN_EMAILS: z.string().min(1),
 		TRIGGER_PROJECT_ID: z.string(),
 		TRIGGER_SECRET_KEY: z.string(),
+	},
+	shared: {
+		VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string(),
+		VITE_PUBLIC_POSTHOG_HOST: z.url().catch("https://eu.i.posthog.com"),
 	},
 	runtimeEnv: runtimeEnv,
 	skipValidation,

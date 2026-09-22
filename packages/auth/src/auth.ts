@@ -4,14 +4,14 @@ import { activatePendingInvites } from "@projection/db/helpers";
 import * as authSchema from "@projection/db/schema/auth";
 import { user as userTable } from "@projection/db/schema/auth";
 import { env } from "@projection/env/server";
-import { tasks } from "@projection/tasks";
 import { settingsPlugin } from "@theshoregroup/settings-better-auth-plugin/server";
 import { betterAuth } from "better-auth";
-import { admin, organization } from "better-auth/plugins";
+import { createAuthMiddleware } from "better-auth/api";
+import { admin } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 import { orgPluginConfig } from "./organization/config";
-import { organizationAc, organizationRoles } from "./organization/permissions";
+import { posthog } from "./posthog";
 import { registry } from "./settings/registry";
 
 // Emails granted the admin role automatically at sign-up (ADR 0004)
@@ -69,6 +69,47 @@ export function createAuth() {
 		// the plugin — it never assigns users to the org. Membership is
 		// granted exclusively by the one-off backfill and the invite flow
 		// below; sign-in itself is untouched.
+		hooks: {
+			after: createAuthMiddleware(async (ctx) => {
+				// Auth-event analytics — sign-up, sign-in, sign-out
+				const newSession = ctx.context.newSession;
+
+				if (ctx.path.startsWith("/sign-up")) {
+					if (newSession?.user) {
+						posthog.capture({
+							event: "auth_sign_up",
+							distinctId: newSession.user.id,
+							properties: {
+								email: newSession.user.email,
+								name: newSession.user.name ?? undefined,
+								role: newSession.user.role ?? undefined,
+							},
+						});
+						posthog.identify({
+							distinctId: newSession.user.id,
+							properties: {
+								email: newSession.user.email,
+								name: newSession.user.name ?? undefined,
+								role: newSession.user.role ?? undefined,
+							},
+						});
+					}
+				} else if (ctx.path.startsWith("/sign-in")) {
+					if (newSession?.user) {
+						posthog.capture({
+							event: "auth_sign_in",
+							distinctId: newSession.user.id,
+						});
+					}
+				} else if (ctx.path.startsWith("/sign-out")) {
+					// On sign-out we may not have a session — best-effort
+					posthog.capture({
+						event: "auth_sign_out",
+						distinctId: undefined,
+					});
+				}
+			}),
+		},
 		// tanstackStartCookies must stay last in the plugins array
 		plugins: [
 			orgPluginConfig,

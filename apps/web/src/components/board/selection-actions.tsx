@@ -57,12 +57,12 @@ export default function SelectionActions({
 	}
 
 	function onCopy() {
-		void run(() =>
-			trpcClient.lines.duplicateMany.mutate({
+		void run(async () => {
+			await trpcClient.lines.duplicateMany.mutate({
 				projectId,
 				ids: [...selectedIds],
-			}),
-		);
+			});
+		});
 	}
 
 	/** Two-step: first click arms, second deletes (no dialogs on the Board). */
@@ -72,12 +72,12 @@ export default function SelectionActions({
 			return;
 		}
 		setConfirmDelete(false);
-		void run(() =>
-			trpcClient.lines.deleteMany.mutate({
+		void run(async () => {
+			await trpcClient.lines.deleteMany.mutate({
 				projectId,
 				ids: [...selectedIds],
-			}),
-		);
+			});
+		});
 	}
 
 	return (

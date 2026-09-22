@@ -20,7 +20,6 @@ import {
 	ComboboxInput,
 	ComboboxItem,
 	ComboboxList,
-	ComboboxSeparator,
 } from "@projection/ui/components/combobox";
 import {
 	Dialog,
@@ -53,7 +52,7 @@ import {
 	useSuspenseQueries,
 } from "@tanstack/react-query";
 import { cn } from "cn";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -290,7 +289,6 @@ function Content() {
 function AddEditorOrInviteMemberCombobox({ projectId }: { projectId: string }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
-
 	const { data: members } = useQuery({
 		queryKey: ["members", "againstProject"],
 		queryFn: () => {
@@ -489,7 +487,7 @@ function DownloadPdfControls({ projectId }: { projectId: string }) {
 				description: e.message,
 				id: toastId,
 			}),
-		onSuccess: (res, _v, toastId) =>
+		onSuccess: (res, _v, toastId) => {
 			toast.success("PDF exported successfully", {
 				description: "Your PDF is ready to download",
 				id: toastId,
@@ -498,7 +496,8 @@ function DownloadPdfControls({ projectId }: { projectId: string }) {
 					onClick: () => handleActualDownload(res),
 					type: "button",
 				},
-			}),
+			});
+		},
 	});
 
 	return (

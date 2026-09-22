@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../index";
 import { assertOwner, loadProjectForUser } from "../lib/access";
+import { posthog } from "@projection/auth/posthog";
 import { inviteSchema } from "../schemas";
 
 export const sharingRouter = router({
@@ -105,6 +106,15 @@ export const sharingRouter = router({
 					);
 				}
 			}
+
+			posthog.capture({
+				event: "editor_invited",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.projectId,
+					invite_sent: !existingUser,
+				},
+			});
 
 			return { editor: created, inviteSent: !existingUser };
 		}),

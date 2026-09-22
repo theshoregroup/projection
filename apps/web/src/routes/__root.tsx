@@ -1,6 +1,12 @@
 import { SmileyXEyesIcon } from "@phosphor-icons/react";
+import {
+	PostHogErrorBoundary,
+	PostHogProvider,
+	usePostHog,
+} from "@posthog/react";
 import type { AppRouter } from "@projection/api/routers/index";
 import { auth, type Session } from "@projection/auth";
+import { env as webEnv } from "@projection/env/web";
 import { Button } from "@projection/ui/components/button";
 import {
 	Empty,
@@ -23,7 +29,7 @@ import {
 import { createMiddleware, createServerFn } from "@tanstack/react-start";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { evlogErrorHandler } from "evlog/nitro/v3";
-import { lazy, useEffect } from "react";
+import { lazy, type ReactNode, useEffect, useRef } from "react";
 import { NotFoundComponent } from "@/components/ui/not-found";
 import { authClient } from "@/lib/auth-client";
 import appCss from "../index.css?url";
@@ -205,16 +211,74 @@ function RootDocument() {
 				<HeadContent />
 			</head>
 			<body>
-				<div className="grid h-svh grid-rows-[auto_1fr]">
-					<Outlet />
-				</div>
-				<Toaster richColors />
-				{DevtoolsPanel && <DevtoolsPanel />}
-				<AuthGate />
+				<PostHogRoot>
+					<div className="grid h-svh grid-rows-[auto_1fr]">
+						<Outlet />
+					</div>
+					<Toaster richColors />
+					{DevtoolsPanel && <DevtoolsPanel />}
+					<AuthGate />
+				</PostHogRoot>
 				<Scripts />
 			</body>
 		</html>
 	);
+}
+
+function PostHogRoot({ children }: { children: ReactNode }) {
+	// Validated at build/startup by @t3-oss/env-core — impossible to reach
+	// runtime without these vars satisfying the schema.
+	const apiKey = webEnv.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
+	const apiHost = webEnv.VITE_PUBLIC_POSTHOG_HOST;
+
+	return (
+		<PostHogProvider
+			apiKey={apiKey}
+			options={{
+				api_host: apiHost,
+				capture_exceptions: true,
+				debug: import.meta.env.DEV,
+				defaults: "2025-05-24",
+			}}
+		>
+			<PostHogIdentity />
+			<PostHogErrorBoundary>{children}</PostHogErrorBoundary>
+		</PostHogProvider>
+	);
+}
+
+function PostHogIdentity() {
+	const { data: sessionData, isPending } = authClient.useSession();
+	const posthog = usePostHog();
+	const identifiedUserId = useRef<string | null>(null);
+	const user = sessionData?.user;
+
+	useEffect(() => {
+		if (isPending) return;
+
+		if (!user) {
+			if (identifiedUserId.current) {
+				posthog.reset();
+				identifiedUserId.current = null;
+			}
+			return;
+		}
+
+		if (identifiedUserId.current === user.id) return;
+
+		if (identifiedUserId.current) {
+			posthog.reset();
+		}
+
+		posthog.identify(user.id, {
+			email: user.email,
+			name: user.name,
+			role: user.role ?? undefined,
+		});
+		identifiedUserId.current = user.id;
+	}, [isPending, posthog, user]);
+
+	return null;
 }
 
 // Re-routes the whole app whenever the client session changes (sign-in /
