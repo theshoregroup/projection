@@ -23,6 +23,7 @@
 	"dependencies": {
 		"@projection/env": "workspace:*",
 		"dotenv": "catalog:",
+		"posthog-node": "^5.52.5",
 		"zod": "catalog:"
 	},
 	"devDependencies": {

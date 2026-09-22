@@ -13,6 +13,7 @@ import {
 import { sortOrderAtEnd, sortOrderBetween } from "../domain/ordering";
 import { protectedProcedure, router } from "../index";
 import { loadLineForUser, loadProjectForUser } from "../lib/access";
+import { posthog } from "@projection/auth/posthog";
 import {
 	coerceMilestoneDates,
 	groupSchema,
@@ -160,7 +161,20 @@ export const linesRouter = router({
 					sortOrder,
 				})
 				.returning();
-			return created;
+
+			if (created) {
+				posthog.capture({
+					event: "line_created",
+					distinctId: ctx.session.user.id,
+					properties: {
+						project_id: input.projectId,
+						is_milestone: created.isMilestone,
+						has_group: created.groupId != null,
+					},
+				});
+			}
+
+			return created!;
 		}),
 
 	update: protectedProcedure
@@ -217,6 +231,13 @@ export const linesRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			await loadLineForUser(ctx.db, input.id, ctx.session.user.id);
 			await ctx.db.delete(line).where(eq(line.id, input.id));
+
+			posthog.capture({
+				event: "line_deleted",
+				distinctId: ctx.session.user.id,
+				properties: { line_id: input.id },
+			});
+
 			return { id: input.id };
 		}),
 
@@ -244,6 +265,16 @@ export const linesRouter = router({
 						inArray(line.id, [...expanded]),
 					),
 				);
+
+			posthog.capture({
+				event: "lines_bulk_deleted",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.projectId,
+					line_count: expanded.size,
+				},
+			});
+
 			return { ids: [...expanded] };
 		}),
 
@@ -313,6 +344,16 @@ export const linesRouter = router({
 				.update(line)
 				.set({ groupId: created.id })
 				.where(inArray(line.id, ids));
+
+			posthog.capture({
+				event: "lines_grouped",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.projectId,
+					line_count: ids.length,
+				},
+			});
+
 			return applyDerivedGroupDates([...all, created]).find(
 				(row) => row.id === created.id,
 			) as LineRow;
@@ -393,6 +434,16 @@ export const linesRouter = router({
 				}
 			}
 			if (inserts.length > 0) await ctx.db.insert(line).values(inserts);
+
+			posthog.capture({
+				event: "lines_duplicated",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.projectId,
+					line_count: newIds.length,
+				},
+			});
+
 			return { ids: newIds };
 		}),
 

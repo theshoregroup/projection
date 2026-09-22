@@ -24,6 +24,7 @@
 		"better-auth": "catalog:",
 		"dotenv": "catalog:",
 		"drizzle-orm": "catalog:",
+		"posthog-node": "^5.52.5",
 		"zod": "catalog:"
 	},
 	"devDependencies": {

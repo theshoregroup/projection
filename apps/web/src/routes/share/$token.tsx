@@ -39,7 +39,7 @@ function VisitorExport({ token }: { token: string }) {
 			document.body.appendChild(anchor);
 			anchor.click();
 			anchor.remove();
-			URL.revokeObjectURL(url);
+			URL.revokeObjectURL(url);;
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Couldn't export the PDF",

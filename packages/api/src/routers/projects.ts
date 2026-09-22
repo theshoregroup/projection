@@ -14,9 +14,7 @@ import {
 	loadProjectForUser,
 } from "../lib/access";
 import { resolveOrgLogo } from "../lib/org-logo";
-// Only the page-size vocabulary is imported statically — the renderer
-// (pdf-lib) is lazy-loaded inside exportPdf so it never weighs down, or
-// breaks, unrelated requests.
+import { posthog } from "@projection/auth/posthog";
 import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 import {
 	projectCreateSchema,
@@ -52,7 +50,22 @@ export const projectsRouter = router({
 					shareToken: randomUUID(),
 				})
 				.returning();
-			return created;
+
+			if (created) {
+				posthog.capture({
+					event: "project_created",
+					distinctId: ctx.session.user.id,
+					properties: {
+						project_id: created.id,
+						has_description: input.description
+							? input.description.trim().length > 0
+							: false,
+						color_palette: created.colorPalette,
+					},
+				});
+			}
+
+			return created!;
 		}),
 
 	update: protectedProcedure
@@ -105,6 +118,13 @@ export const projectsRouter = router({
 			);
 			assertOwner(access.role);
 			await ctx.db.delete(project).where(eq(project.id, input.id));
+
+			posthog.capture({
+				event: "project_deleted",
+				distinctId: ctx.session.user.id,
+				properties: { project_id: input.id },
+			});
+
 			return { id: input.id };
 		}),
 
@@ -158,6 +178,17 @@ export const projectsRouter = router({
 				if (copied.length > 0) {
 					await tx.insert(line).values(copied);
 				}
+
+				posthog.capture({
+					event: "project_duplicated",
+					distinctId: ctx.session.user.id,
+					properties: {
+						source_project_id: input.id,
+						new_project_id: created.id,
+						start_date_shifted: dayOffset !== 0,
+					},
+				});
+
 				return created;
 			});
 		}),
@@ -220,6 +251,17 @@ export const projectsRouter = router({
 				access.project.organizationId,
 			);
 			const { renderBoardPdf } = await import("../pdf/render");
+
+			posthog.capture({
+				event: "project_pdf_exported",
+				distinctId: ctx.session.user.id,
+				properties: {
+					project_id: input.id,
+					page_size: input.pageSize,
+					source: "member",
+				},
+			});
+
 			return renderBoardPdf(
 				access.project,
 				lines,
@@ -242,6 +284,13 @@ export const projectsRouter = router({
 				.update(project)
 				.set({ shareToken })
 				.where(eq(project.id, input.id));
+
+			posthog.capture({
+				event: "share_link_regenerated",
+				distinctId: ctx.session.user.id,
+				properties: { project_id: input.id },
+			});
+
 			return { shareToken };
 		}),
 });

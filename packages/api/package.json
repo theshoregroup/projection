@@ -23,6 +23,7 @@
 		"dotenv": "catalog:",
 		"drizzle-orm": "catalog:",
 		"pdf-lib": "^1.17.1",
+		"posthog-node": "^5.52.5",
 		"superjson": "^2.2.6",
 		"zod": "catalog:"
 	},
