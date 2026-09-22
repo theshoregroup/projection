@@ -11,7 +11,7 @@
 
 import { resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
-import { generateRegistry } from "./codegen";
+import { generateRegistry } from "./codegen.ts";
 
 export interface DialogRegistryPluginOptions {
 	/** Directory scanned for `*.dialog.tsx` files. Default: `src/components`. */
@@ -20,17 +20,25 @@ export interface DialogRegistryPluginOptions {
 	outPath?: string;
 }
 
-export function dialogRegistryPlugin(options: DialogRegistryPluginOptions = {}): Plugin {
+export function dialogRegistryPlugin(
+	options: DialogRegistryPluginOptions = {},
+): Plugin {
 	let config: ResolvedConfig;
 	let scanDir: string;
 	let outPath: string;
 
 	const regenerate = (label: string, strict: boolean) => {
 		try {
-			const { entries, changed, warnings } = generateRegistry({ scanDir, outPath, strict });
+			const { entries, changed, warnings } = generateRegistry({
+				scanDir,
+				outPath,
+				strict,
+			});
 			for (const w of warnings) config.logger.warn(`[dialogs] ${w}`);
 			if (changed) {
-				config.logger.info(`[dialogs] ${label}: regenerated ${entries.length} dialog(s)`);
+				config.logger.info(
+					`[dialogs] ${label}: regenerated ${entries.length} dialog(s)`,
+				);
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -48,7 +56,10 @@ export function dialogRegistryPlugin(options: DialogRegistryPluginOptions = {}):
 		configResolved(resolved) {
 			config = resolved;
 			scanDir = resolve(config.root, options.scanDir ?? "src/components");
-			outPath = resolve(config.root, options.outPath ?? "src/dialogTree.gen.ts");
+			outPath = resolve(
+				config.root,
+				options.outPath ?? "src/dialogTree.gen.ts",
+			);
 			const isBuild = config.command === "build";
 			regenerate("startup", isBuild);
 		},

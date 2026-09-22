@@ -5,7 +5,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import "@projection/env/server";
-import { dialogRegistryPlugin } from "./src/utils/dialogs/vite-plugin";
+import { dialogRegistryPlugin } from "./src/utils/dialogs/vite-plugin/index";
 
 export default defineConfig(({ command }) => ({
 	server: {
