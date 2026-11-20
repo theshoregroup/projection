@@ -1,9 +1,27 @@
-import { BeachBallIcon, PlusCircleIcon, SignOutIcon } from "@phosphor-icons/react/dist/ssr";
-import { Alert, AlertDescription, AlertTitle } from "@projection/ui/components/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@projection/ui/components/avatar";
+import {
+	BeachBallIcon,
+	PlusCircleIcon,
+	SignOutIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@projection/ui/components/alert";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@projection/ui/components/avatar";
 import { Badge } from "@projection/ui/components/badge";
 import { Button } from "@projection/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@projection/ui/components/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@projection/ui/components/card";
 import {
 	Item,
 	ItemActions,
@@ -86,7 +104,9 @@ function RouteComponent() {
 	const handleAccept = useMutation({
 		mutationKey: ["accept_invite"],
 		mutationFn: async (invitationId: string) => {
-			const { data, error } = await authClient.organization.acceptInvitation({ invitationId });
+			const { data, error } = await authClient.organization.acceptInvitation({
+				invitationId,
+			});
 			if (error) {
 				throw error;
 			}
@@ -145,13 +165,15 @@ function RouteComponent() {
 					<CreateNewOrganizationDialog
 						triggerButton={
 							<Item aria-orientation="horizontal">
-								<ItemMedia className="bg-accent text-accent-foreground p-2 rounded-sm" variant={"icon"}>
+								<ItemMedia
+									className="rounded-sm bg-accent p-2 text-accent-foreground"
+									variant={"icon"}
+								>
 									<PlusCircleIcon />
 								</ItemMedia>
 
 								<ItemContent>
 									<ItemTitle>Create A New Organization</ItemTitle>
-
 								</ItemContent>
 							</Item>
 						}
@@ -161,7 +183,9 @@ function RouteComponent() {
 						<Item aria-orientation="horizontal" variant={"muted"}>
 							<ItemContent>
 								<ItemTitle>Loading organizations...</ItemTitle>
-								<ItemDescription>Fetching organizations you belong to.</ItemDescription>
+								<ItemDescription>
+									Fetching organizations you belong to.
+								</ItemDescription>
 							</ItemContent>
 						</Item>
 					)}
@@ -173,7 +197,9 @@ function RouteComponent() {
 							render={
 								<button
 									onClick={async () => {
-										const id = toast.loading(`Switching to ${organization.name}...`);
+										const id = toast.loading(
+											`Switching to ${organization.name}...`,
+										);
 
 										if (session?.activeOrganizationId === organization.id) {
 											toast.success("Redirecting you to your dashboard...", {
@@ -187,7 +213,9 @@ function RouteComponent() {
 											organizationId: organization.id,
 											fetchOptions: {
 												onSuccess: () => {
-													toast.success(`Switched to ${organization.name}`, { id });
+													toast.success(`Switched to ${organization.name}`, {
+														id,
+													});
 													navigate({ to: "/dashboard" });
 												},
 											},
@@ -196,13 +224,23 @@ function RouteComponent() {
 									type="button"
 								/>
 							}
-							variant={session?.activeOrganizationId === organization.id ? "muted" : "default"}
+							variant={
+								session?.activeOrganizationId === organization.id
+									? "muted"
+									: "default"
+							}
 						>
 							<ItemMedia>
 								<Avatar className="rounded-sm after:rounded-sm">
-									<AvatarFallback className="rounded-sm">{getOrgShortName(organization.name)}</AvatarFallback>
+									<AvatarFallback className="rounded-sm">
+										{getOrgShortName(organization.name)}
+									</AvatarFallback>
 									{organization.logo && (
-										<AvatarImage className="rounded-sm" src={organization.logo} alt={organization.name} />
+										<AvatarImage
+											className="rounded-sm"
+											src={organization.logo}
+											alt={organization.name}
+										/>
 									)}
 								</Avatar>
 							</ItemMedia>
@@ -210,20 +248,27 @@ function RouteComponent() {
 								<ItemTitle>{organization.name}</ItemTitle>
 								<ItemDescription>{organization.slug}</ItemDescription>
 							</ItemContent>
-							{session?.activeOrganizationId === organization.id && <Badge>Active</Badge>}
+							{session?.activeOrganizationId === organization.id && (
+								<Badge>Active</Badge>
+							)}
 						</Item>
 					))}
-					{!organizationsQuery.isLoading && organizationsQuery.data?.length === 0 && (
-						<Item aria-orientation="horizontal" variant={"muted"}>
-							<ItemContent>
-								<ItemTitle>No organizations yet</ItemTitle>
-							</ItemContent>
-						</Item>
-					)}
+					{!organizationsQuery.isLoading &&
+						organizationsQuery.data?.length === 0 && (
+							<Item aria-orientation="horizontal" variant={"muted"}>
+								<ItemContent>
+									<ItemTitle>No organizations yet</ItemTitle>
+								</ItemContent>
+							</Item>
+						)}
 
 					{invitationsQuery.data?.map((invite) => {
 						return (
-							<Item key={invite.id} aria-orientation="horizontal" variant={"outline"}>
+							<Item
+								key={invite.id}
+								aria-orientation="horizontal"
+								variant={"outline"}
+							>
 								<ItemContent>
 									<ItemTitle>{invite.organizationName}</ItemTitle>
 									<div className="flex flex-row gap-2">
@@ -232,8 +277,14 @@ function RouteComponent() {
 									</div>
 								</ItemContent>
 								<ItemActions>
-									<Button disabled={handleAccept.isPending} onClick={() => handleAccept.mutate(invite.id)}>
-										Accept {handleAccept.isPending && <BeachBallIcon className="animate animate-spin ease-in-out" />}
+									<Button
+										disabled={handleAccept.isPending}
+										onClick={() => handleAccept.mutate(invite.id)}
+									>
+										Accept{" "}
+										{handleAccept.isPending && (
+											<BeachBallIcon className="animate animate-spin ease-in-out" />
+										)}
 									</Button>
 								</ItemActions>
 							</Item>
@@ -242,7 +293,9 @@ function RouteComponent() {
 
 					{error && (
 						<Alert variant="destructive">
-							<AlertTitle>There was an error processing your request</AlertTitle>
+							<AlertTitle>
+								There was an error processing your request
+							</AlertTitle>
 							<AlertDescription>{error}</AlertDescription>
 						</Alert>
 					)}
@@ -265,7 +318,10 @@ function RouteComponent() {
 							/>
 						}
 					>
-						<ItemMedia className="p-2 bg-destructive text-destructive-foreground rounded-sm" variant={"icon"}>
+						<ItemMedia
+							className="rounded-sm bg-destructive p-2 text-destructive-foreground"
+							variant={"icon"}
+						>
 							<SignOutIcon />
 						</ItemMedia>
 

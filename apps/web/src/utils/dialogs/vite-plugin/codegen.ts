@@ -3,7 +3,14 @@
 // imports only zod plus the inline schemas — no dialog component code is
 // referenced, so the registry stays tiny in the root bundle.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { dirname, join, relative } from "node:path";
 import ts from "typescript";
 
@@ -48,7 +55,10 @@ interface ExtractedDialog {
 	filePath: string;
 }
 
-function extractDialogsFromFile(filePath: string, sf: ts.SourceFile): ExtractedDialog[] {
+function extractDialogsFromFile(
+	filePath: string,
+	sf: ts.SourceFile,
+): ExtractedDialog[] {
 	const results: ExtractedDialog[] = [];
 
 	const visit = (node: ts.Node) => {
@@ -62,18 +72,24 @@ function extractDialogsFromFile(filePath: string, sf: ts.SourceFile): ExtractedD
 			const arg = node.arguments[0];
 			const schemaProp = arg.properties.find(
 				(p): p is ts.PropertyAssignment =>
-					ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === "schema",
+					ts.isPropertyAssignment(p) &&
+					ts.isIdentifier(p.name) &&
+					p.name.text === "schema",
 			);
 			if (schemaProp) {
 				const schemaExpr = schemaProp.initializer;
 				const dialogKey = extractDialogKey(schemaExpr);
 				if (!dialogKey) {
 					throw new Error(
-						`Could not extract dialogKey literal. Schemas must include ` +
+						"Could not extract dialogKey literal. Schemas must include " +
 							`\`dialogKey: z.literal("...")\` as a direct property.`,
 					);
 				}
-				results.push({ dialogKey, schemaText: schemaExpr.getText(sf), filePath });
+				results.push({
+					dialogKey,
+					schemaText: schemaExpr.getText(sf),
+					filePath,
+				});
 			}
 		}
 		ts.forEachChild(node, visit);
@@ -123,7 +139,13 @@ export function generateRegistry(opts: CodegenOptions): CodegenResult {
 	for (const file of files) {
 		try {
 			const source = readFileSync(file, "utf8");
-			const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+			const sf = ts.createSourceFile(
+				file,
+				source,
+				ts.ScriptTarget.Latest,
+				true,
+				ts.ScriptKind.TSX,
+			);
 			extracted.push(...extractDialogsFromFile(file, sf));
 		} catch (err) {
 			const msg = `${file}: ${err instanceof Error ? err.message : String(err)}`;
@@ -137,7 +159,9 @@ export function generateRegistry(opts: CodegenOptions): CodegenResult {
 		const prior = seen.get(e.dialogKey);
 		if (prior) {
 			// Duplicate keys are always fatal — they're data corruption, not in-progress edits.
-			throw new Error(`Duplicate dialogKey "${e.dialogKey}":\n  - ${prior}\n  - ${e.filePath}`);
+			throw new Error(
+				`Duplicate dialogKey "${e.dialogKey}":\n  - ${prior}\n  - ${e.filePath}`,
+			);
 		}
 		seen.set(e.dialogKey, e.filePath);
 	}
@@ -164,7 +188,9 @@ export type DialogKey = keyof typeof dialogSchemas;
 `;
 
 	const next = header + body;
-	const prev = existsSync(opts.outPath) ? readFileSync(opts.outPath, "utf8") : null;
+	const prev = existsSync(opts.outPath)
+		? readFileSync(opts.outPath, "utf8")
+		: null;
 	const changed = prev !== next;
 
 	if (changed) {
@@ -173,7 +199,10 @@ export type DialogKey = keyof typeof dialogSchemas;
 	}
 
 	return {
-		entries: extracted.map(({ dialogKey, filePath }) => ({ dialogKey, filePath })),
+		entries: extracted.map(({ dialogKey, filePath }) => ({
+			dialogKey,
+			filePath,
+		})),
 		changed,
 		warnings,
 	};

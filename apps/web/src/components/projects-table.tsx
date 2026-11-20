@@ -1,4 +1,3 @@
-import { getPalette } from "@projection/db/palettes";
 import {
 	CopyIcon,
 	DotsThreeIcon,
@@ -8,6 +7,7 @@ import {
 	SmileyXEyesIcon,
 	TrashIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { getPalette } from "@projection/db/palettes";
 import { Button } from "@projection/ui/components/button";
 import {
 	DropdownMenu,
@@ -63,10 +63,10 @@ function PaletteSwatch({ paletteId }: { paletteId: string }) {
 					style={{ backgroundColor: colour }}
 				/>
 			))}
-			<span className="ml-1 whitespace-nowrap text-xs text-muted-foreground">
+			<span className="ml-1 whitespace-nowrap text-muted-foreground text-xs">
 				{palette.label}
 				{palette.accessible ? (
-					<span className="ml-0.5 rounded bg-emerald-100 px-0.5 text-[10px] font-medium text-emerald-700">
+					<span className="ml-0.5 rounded bg-emerald-100 px-0.5 font-medium text-[10px] text-emerald-700">
 						CB
 					</span>
 				) : null}

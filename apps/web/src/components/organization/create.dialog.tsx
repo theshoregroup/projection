@@ -7,7 +7,12 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@projection/ui/components/dialog";
-import { Field, FieldContent, FieldError, FieldLabel } from "@projection/ui/components/field";
+import {
+	Field,
+	FieldContent,
+	FieldError,
+	FieldLabel,
+} from "@projection/ui/components/field";
 import { Input } from "@projection/ui/components/input";
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
@@ -22,14 +27,20 @@ export const createOrgSchema = z.object({
 	slug: z.string().min(3),
 });
 
-export function CreateNewOrganizationDialog({ triggerButton }: { triggerButton: React.ReactNode }) {
+export function CreateNewOrganizationDialog({
+	triggerButton,
+}: {
+	triggerButton: React.ReactNode;
+}) {
 	const navigate = useNavigate();
 
 	const mutation = useMutation({
 		mutationKey: ["createOrganization"],
 		mutationFn: async (input: z.infer<typeof createOrgSchema>) => {
 			// Better-auth handles auth checks, we're just passing this through
-			const res = await authClient.organization.create(createOrgSchema.parse(input));
+			const res = await authClient.organization.create(
+				createOrgSchema.parse(input),
+			);
 
 			if (res.error) {
 				throw new Error(res.error.message, { cause: res.error });
@@ -75,7 +86,7 @@ export function CreateNewOrganizationDialog({ triggerButton }: { triggerButton: 
 		onSubmit: async ({ value }) => mutation.mutateAsync(value),
 	});
 
-	const slugEdited = useRef(false);
+	const slugEditedRef = useRef(false);
 
 	return (
 		<Dialog>
@@ -97,12 +108,15 @@ export function CreateNewOrganizationDialog({ triggerButton }: { triggerButton: 
 				>
 					<form.Field name="name">
 						{(field) => {
-							const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid =
+								field.state.meta.isTouched && !field.state.meta.isValid;
 
 							return (
 								<Field data-invalid={isInvalid} orientation={"responsive"}>
 									<FieldContent>
-										<FieldLabel htmlFor={field.name}>Organization Name</FieldLabel>
+										<FieldLabel htmlFor={field.name}>
+											Organization Name
+										</FieldLabel>
 									</FieldContent>
 									<Input
 										id={field.name}
@@ -111,12 +125,14 @@ export function CreateNewOrganizationDialog({ triggerButton }: { triggerButton: 
 										onChange={(e) => {
 											field.handleChange(e.target.value);
 
-											if (slugEdited.current) {
+											if (slugEditedRef.current) {
 												return;
 											}
 
 											// Slugify value
-											const slug = e.target.value.replace(/\s+/g, "-").toLowerCase();
+											const slug = e.target.value
+												.replace(/\s+/g, "-")
+												.toLowerCase();
 
 											form.setFieldValue("slug", slug);
 										}}
@@ -130,19 +146,22 @@ export function CreateNewOrganizationDialog({ triggerButton }: { triggerButton: 
 					</form.Field>
 					<form.Field name="slug">
 						{(field) => {
-							const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid =
+								field.state.meta.isTouched && !field.state.meta.isValid;
 
 							return (
 								<Field data-invalid={isInvalid} orientation={"responsive"}>
 									<FieldContent>
-										<FieldLabel htmlFor={field.name}>Organization Slug</FieldLabel>
+										<FieldLabel htmlFor={field.name}>
+											Organization Slug
+										</FieldLabel>
 									</FieldContent>
 									<Input
 										id={field.name}
 										name={field.name}
 										onBlur={field.handleBlur}
 										onChange={(e) => {
-											slugEdited.current = true;
+											slugEditedRef.current = true;
 											field.handleChange(e.target.value);
 										}}
 										placeholder="acme-inc"

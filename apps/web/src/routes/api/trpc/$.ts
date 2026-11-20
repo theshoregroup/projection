@@ -1,6 +1,6 @@
 import { createContext } from "@projection/api/context";
-import { posthog } from "@projection/auth/posthog";
 import { appRouter } from "@projection/api/routers/index";
+import { posthog } from "@projection/auth/posthog";
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
@@ -12,10 +12,7 @@ function handler({ request }: { request: Request }) {
 		endpoint: "/api/trpc",
 		onError: ({ error, ctx }) => {
 			if (error.code === "INTERNAL_SERVER_ERROR") {
-				posthog.captureException(
-					error.cause ?? error,
-					ctx?.session?.user?.id,
-				);
+				posthog.captureException(error.cause ?? error, ctx?.session?.user?.id);
 			}
 		},
 	});
