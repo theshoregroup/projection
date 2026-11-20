@@ -10,14 +10,17 @@ import {
 import { Input } from "@projection/ui/components/input";
 import { Label } from "@projection/ui/components/label";
 import { QuerySuspenseBoundary } from "@projection/ui/components/query";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
-
-import { useTRPC } from "@/utils/trpc";
 import { defineDialog } from "@/utils/dialogs/define-dialog";
+import { useTRPC } from "@/utils/trpc";
 
 export const projectDuplicateDialog = defineDialog({
 	schema: z.object({
@@ -33,9 +36,9 @@ function Content() {
 	const control = projectDuplicateDialog.useControl();
 	const projectId = control.dialogId ?? "";
 
-	const { data: { project } } = useSuspenseQuery(
-		trpc.projects.byId.queryOptions({ id: projectId }),
-	);
+	const {
+		data: { project },
+	} = useSuspenseQuery(trpc.projects.byId.queryOptions({ id: projectId }));
 
 	const [name, setName] = useState(`${project.name} (copy)`);
 	const [newStartDate, setNewStartDate] = useState(project.seedStart);

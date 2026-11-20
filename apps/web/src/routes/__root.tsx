@@ -181,7 +181,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<code className="bg-muted p-2 text-red-400">{error?.message}</code>
+						<code className="bg-muted p-2 text-red-400">
+							{error instanceof Error ? error.message : String(error)}
+						</code>
 
 						<div className="flex gap-2">
 							<Button onClick={reset}>Try again</Button>
@@ -250,23 +252,23 @@ function PostHogRoot({ children }: { children: ReactNode }) {
 function PostHogIdentity() {
 	const { data: sessionData, isPending } = authClient.useSession();
 	const posthog = usePostHog();
-	const identifiedUserId = useRef<string | null>(null);
+	const identifiedUserIdRef = useRef<string | null>(null);
 	const user = sessionData?.user;
 
 	useEffect(() => {
 		if (isPending) return;
 
 		if (!user) {
-			if (identifiedUserId.current) {
+			if (identifiedUserIdRef.current) {
 				posthog.reset();
-				identifiedUserId.current = null;
+				identifiedUserIdRef.current = null;
 			}
 			return;
 		}
 
-		if (identifiedUserId.current === user.id) return;
+		if (identifiedUserIdRef.current === user.id) return;
 
-		if (identifiedUserId.current) {
+		if (identifiedUserIdRef.current) {
 			posthog.reset();
 		}
 
@@ -275,7 +277,7 @@ function PostHogIdentity() {
 			name: user.name,
 			role: user.role ?? undefined,
 		});
-		identifiedUserId.current = user.id;
+		identifiedUserIdRef.current = user.id;
 	}, [isPending, posthog, user]);
 
 	return null;

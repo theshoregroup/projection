@@ -1,9 +1,14 @@
+import { Button } from "@projection/ui/components/button";
+import { Separator } from "@projection/ui/components/separator";
 import { cn } from "@projection/ui/lib/utils";
+import { ASSIGNEE_MIN_WIDTH } from "@/hooks/use-board-panel";
 
 interface BoardSidePanelProps {
 	isOpen: boolean;
 	width: number;
 	assigneeWidth: number;
+	maxAssigneeWidth: number;
+	maxPanelWidth: number;
 	allowPanelResize?: boolean;
 	onStartResize: (event: React.PointerEvent) => void;
 	onStartRailOpen: (event: React.PointerEvent) => void;
@@ -18,6 +23,8 @@ export default function BoardSidePanel({
 	isOpen,
 	width,
 	assigneeWidth,
+	maxAssigneeWidth,
+	maxPanelWidth,
 	allowPanelResize = true,
 	onStartResize,
 	onStartRailOpen,
@@ -41,9 +48,12 @@ export default function BoardSidePanel({
 			{isOpen ? (
 				<>
 					{children}
-					<div
-						role="separator"
+					<Separator
 						aria-label="Resize assignee column"
+						orientation="vertical"
+						aria-valuemin={ASSIGNEE_MIN_WIDTH}
+						aria-valuemax={maxAssigneeWidth}
+						aria-valuenow={assigneeWidth}
 						tabIndex={0}
 						className={cn(
 							"absolute inset-y-0 z-10 w-0.5 cursor-col-resize bg-border/80",
@@ -56,9 +66,12 @@ export default function BoardSidePanel({
 						onPointerCancel={onPointerUp}
 					/>
 					{allowPanelResize && (
-						<div
-							role="separator"
+						<Separator
 							aria-label="Resize rows panel"
+							orientation="vertical"
+							aria-valuemin={0}
+							aria-valuemax={maxPanelWidth}
+							aria-valuenow={width}
 							tabIndex={0}
 							className={cn(
 								"absolute inset-y-0 right-0 z-20 w-1 cursor-ew-resize hover:bg-border/80",
@@ -78,13 +91,15 @@ export default function BoardSidePanel({
 					)}
 				</>
 			) : (
-				<div
-					role="button"
+				<Button
+					type="button"
+					variant="ghost"
 					aria-label="Open rows panel"
 					tabIndex={0}
 					className={cn(
 						"absolute inset-y-0 left-0 z-20 w-1 cursor-e-resize hover:bg-border/80",
 						"focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+						"h-auto rounded-none border-0 p-0",
 					)}
 					onPointerDown={onStartRailOpen}
 					onPointerMove={onPointerMove}

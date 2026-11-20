@@ -63,7 +63,7 @@ export function PalettePicker({
 									<PaletteSwatch palette={p} />
 									<span className="flex items-center gap-1">
 										{p.label}
-										<span className="rounded bg-emerald-100 px-1 text-[10px] font-medium text-emerald-700">
+										<span className="rounded bg-emerald-100 px-1 font-medium text-[10px] text-emerald-700">
 											CB
 										</span>
 									</span>

@@ -18,8 +18,13 @@ import { z } from "zod";
 export function composeFromRegistry(schemas: Record<string, z.ZodType>) {
 	const knownKeys = new Set(Object.keys(schemas));
 	const list = Object.values(schemas) as [z.ZodType, ...z.ZodType[]];
-	const union = list.length > 0 ? z.discriminatedUnion("dialogKey", list as never) : null;
-	const emptyState = { dialogKey: undefined, dialogId: undefined, dialogPage: undefined } as const;
+	const union =
+		list.length > 0 ? z.discriminatedUnion("dialogKey", list as never) : null;
+	const emptyState = {
+		dialogKey: undefined,
+		dialogId: undefined,
+		dialogPage: undefined,
+	} as const;
 
 	return function validateDialogSearch(input: unknown) {
 		const obj = (input ?? {}) as Record<string, unknown>;
@@ -33,11 +38,13 @@ export function composeFromRegistry(schemas: Record<string, z.ZodType>) {
 			if (import.meta.env.DEV) {
 				console.warn(
 					`[dialogs] URL has dialogKey="${String(incomingKey)}" but no matching dialog is registered. ` +
-						`Stripping in dev so the page keeps rendering — this would throw in a production build.`,
+						"Stripping in dev so the page keeps rendering — this would throw in a production build.",
 				);
 				return emptyState;
 			}
-			throw new Error(`Unknown dialogKey "${String(incomingKey)}" in URL — no dialog is registered for this key.`);
+			throw new Error(
+				`Unknown dialogKey "${String(incomingKey)}" in URL — no dialog is registered for this key.`,
+			);
 		}
 
 		return union.parse(obj);

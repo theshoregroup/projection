@@ -41,7 +41,9 @@ export const project = pgTable(
 		seedEnd: date("seed_end", { mode: "string" }).notNull(),
 		// Colour palette for Board bar rendering (each assignee's bar is hashed to
 		// a colour from this palette). Defaults to the system palette.
-		colorPalette: text("color_palette", { enum: PALETTE_IDS }).default(DEFAULT_PALETTE_ID).notNull(),
+		colorPalette: text("color_palette", { enum: PALETTE_IDS })
+			.default(DEFAULT_PALETTE_ID)
+			.notNull(),
 		// Unguessable token powering the public Share Link; regeneratable by the Owner
 		shareToken: text("share_token").unique(),
 		// Whether Share Link visitors may download the Board as a PDF (Owner-controlled)

@@ -54,7 +54,13 @@ import { useTRPCClient } from "@/utils/trpc";
 type LinesCollection = ReturnType<typeof getLinesCollection>;
 
 interface BoardViewProps {
-	project: { id: string; name: string; seedStart: string; seedEnd: string; colorPalette: string };
+	project: {
+		id: string;
+		name: string;
+		seedStart: string;
+		seedEnd: string;
+		colorPalette: string;
+	};
 	lines: LineRow[];
 	/** Read-only render for the public Share Link — no controls, no mutations. */
 	readOnly?: boolean;
@@ -163,6 +169,8 @@ export default function BoardView({
 		onPointerMove,
 		onPointerUp,
 		toggle,
+		maxAssigneeWidth,
+		maxPanelWidth,
 	} = useBoardPanel();
 	const isMobile = useIsMobile();
 	const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -582,6 +590,8 @@ export default function BoardView({
 					isOpen={panelDisplayOpen}
 					width={panelDisplayWidth}
 					assigneeWidth={assigneeWidth}
+					maxAssigneeWidth={maxAssigneeWidth}
+					maxPanelWidth={maxPanelWidth}
 					allowPanelResize={!isMobile}
 					onStartResize={startPanelResize}
 					onStartRailOpen={startRailOpen}
@@ -836,7 +846,10 @@ export default function BoardView({
 											}
 										: line;
 								const bar = barForLine(geom, effective);
-								const color = assigneeColor(line.assignee, project.colorPalette);
+								const color = assigneeColor(
+									line.assignee,
+									project.colorPalette,
+								);
 								const cy = rowY(index) + ROW_HEIGHT / 2;
 								const tooltip = line.isGroup
 									? `${line.item}${line.assignee ? ` — ${line.assignee}` : ""} · ${effective.startDate} → ${effective.endDate}`

@@ -13,12 +13,17 @@ type AllowedShape = {
 export type DialogSchema = z.ZodObject<AllowedShape>;
 
 type Inferred<S extends DialogSchema> = z.infer<S>;
-type IdOf<S extends DialogSchema> = Inferred<S> extends { dialogId: infer T } ? T : undefined;
-type PageOf<S extends DialogSchema> = Inferred<S> extends { dialogPage: infer T } ? T : undefined;
-type HasPage<S extends DialogSchema> = Inferred<S> extends { dialogPage: unknown } ? true : false;
-type HasId<S extends DialogSchema> = Inferred<S> extends { dialogId: unknown } ? true : false;
+type IdOf<S extends DialogSchema> =
+	Inferred<S> extends { dialogId: infer T } ? T : undefined;
+type PageOf<S extends DialogSchema> =
+	Inferred<S> extends { dialogPage: infer T } ? T : undefined;
+type HasPage<S extends DialogSchema> =
+	Inferred<S> extends { dialogPage: unknown } ? true : false;
+type HasId<S extends DialogSchema> =
+	Inferred<S> extends { dialogId: unknown } ? true : false;
 
-type SetPageFn<S extends DialogSchema> = HasPage<S> extends true ? (page: PageOf<S>) => void : never;
+type SetPageFn<S extends DialogSchema> =
+	HasPage<S> extends true ? (page: PageOf<S>) => void : never;
 
 export type DialogState<S extends DialogSchema> =
 	| {
@@ -36,10 +41,15 @@ export type DialogState<S extends DialogSchema> =
 			onOpenChange: (next: boolean) => void;
 	  };
 
-type DialogLinkProps<S extends DialogSchema> = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+type DialogLinkProps<S extends DialogSchema> = Omit<
+	AnchorHTMLAttributes<HTMLAnchorElement>,
+	"href"
+> & {
 	children?: ReactNode;
 } & (HasId<S> extends true ? { dialogId: IdOf<S> } : { dialogId?: undefined }) &
-	(HasPage<S> extends true ? { dialogPage?: PageOf<S> } : { dialogPage?: undefined });
+	(HasPage<S> extends true
+		? { dialogPage?: PageOf<S> }
+		: { dialogPage?: undefined });
 
 export interface Dialog<S extends DialogSchema> {
 	readonly key: string;
@@ -58,11 +68,15 @@ function isLiteral(value: unknown): value is z.ZodLiteral<string> {
 function extractLiteralValue(literal: z.ZodLiteral<string>): string {
 	// Zod v4 surfaces the literal value at `.value` (which is an array for multi-value literals);
 	// for our single-value case we take the first.
-	const raw = (literal as unknown as { value: string | readonly string[] }).value;
+	const raw = (literal as unknown as { value: string | readonly string[] })
+		.value;
 	return Array.isArray(raw) ? raw[0] : (raw as string);
 }
 
-export function defineDialog<S extends DialogSchema>(opts: { schema: S; historyMode?: HistoryMode }): Dialog<S> {
+export function defineDialog<S extends DialogSchema>(opts: {
+	schema: S;
+	historyMode?: HistoryMode;
+}): Dialog<S> {
 	const { schema, historyMode = "modal" } = opts;
 
 	// Runtime enforcement: only allowed fields, dialogKey must be a literal.
@@ -74,7 +88,9 @@ export function defineDialog<S extends DialogSchema>(opts: { schema: S; historyM
 		);
 	}
 	if (!shape.dialogKey || !isLiteral(shape.dialogKey)) {
-		throw new Error("defineDialog: schema must declare dialogKey as z.literal('...').");
+		throw new Error(
+			"defineDialog: schema must declare dialogKey as z.literal('...').",
+		);
 	}
 
 	const key = extractLiteralValue(shape.dialogKey);
@@ -91,13 +107,19 @@ export function defineDialog<S extends DialogSchema>(opts: { schema: S; historyM
 		const isActive = search.dialogKey === key;
 
 		const onOpenChange = (next: boolean) => {
-			const shouldReplace = historyMode === "always-replace" || (historyMode === "modal" && !next);
+			const shouldReplace =
+				historyMode === "always-replace" || (historyMode === "modal" && !next);
 			navigate({
 				// biome-ignore lint/suspicious/noExplicitAny: generic dialog factory; navigate's union type is too narrow to express here
 				search: ((old: any) =>
 					next
 						? { ...old, dialogKey: key }
-						: { ...old, dialogKey: undefined, dialogId: undefined, dialogPage: undefined }) as never,
+						: {
+								...old,
+								dialogKey: undefined,
+								dialogId: undefined,
+								dialogPage: undefined,
+							}) as never,
 				replace: shouldReplace,
 			});
 		};
@@ -106,7 +128,11 @@ export function defineDialog<S extends DialogSchema>(opts: { schema: S; historyM
 			const shouldReplace = historyMode === "always-replace";
 			navigate({
 				// biome-ignore lint/suspicious/noExplicitAny: see above
-				search: ((old: any) => ({ ...old, dialogKey: key, dialogPage: nextPage })) as never,
+				search: ((old: any) => ({
+					...old,
+					dialogKey: key,
+					dialogPage: nextPage,
+				})) as never,
 				replace: shouldReplace,
 			});
 		}) as SetPageFn<S>;
@@ -131,10 +157,11 @@ export function defineDialog<S extends DialogSchema>(opts: { schema: S; historyM
 	}
 
 	function DialogLinkImpl(props: DialogLinkProps<S>) {
-		const { dialogId, dialogPage, children, ...rest } = props as DialogLinkProps<S> & {
-			dialogId?: unknown;
-			dialogPage?: unknown;
-		};
+		const { dialogId, dialogPage, children, ...rest } =
+			props as DialogLinkProps<S> & {
+				dialogId?: unknown;
+				dialogPage?: unknown;
+			};
 		const shouldReplace = historyMode === "always-replace";
 
 		return (

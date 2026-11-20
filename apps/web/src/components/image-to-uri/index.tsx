@@ -174,40 +174,36 @@ export function ImageToUri({
 				</Button>
 			</div>
 
-			<div className="flex items-center gap-2 text-xs text-muted-foreground">
+			<div className="flex items-center gap-2 text-muted-foreground text-xs">
 				<div className="h-px flex-1 bg-border" />
 				or
 				<div className="h-px flex-1 bg-border" />
 			</div>
 
-			<div
+			<Button
+				type="button"
 				onDrop={handleDrop}
 				onDragOver={handleDragOver}
-				className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 border-dashed border-border px-4 py-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/50"
+				className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 border-border border-dashed px-4 py-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/50"
 				onClick={() => fileInputRef.current?.click()}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						fileInputRef.current?.click();
-					}
-				}}
 			>
-				<span className="text-sm text-muted-foreground">
+				<span className="text-muted-foreground text-sm">
 					Drop a PNG or JPEG image, or click to browse
 				</span>
-				<input
-					ref={fileInputRef}
-					type="file"
-					accept="image/png,image/jpeg"
-					className="hidden"
-					onChange={(e) => {
-						const file = e.target.files?.[0];
-						if (file) handleFile(file);
-						e.target.value = "";
-					}}
-				/>
-			</div>
+			</Button>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept="image/png,image/jpeg"
+				className="hidden"
+				onChange={(e) => {
+					const file = e.target.files?.[0];
+					if (file) handleFile(file);
+					e.target.value = "";
+				}}
+			/>
 
-			{error && <p className="text-sm text-destructive">{error}</p>}
+			{error && <p className="text-destructive text-sm">{error}</p>}
 		</div>
 	);
 }

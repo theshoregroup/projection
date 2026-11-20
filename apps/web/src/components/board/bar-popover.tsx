@@ -118,9 +118,7 @@ export default function BarPopover({
 					<Checkbox
 						id="bar-milestone"
 						checked={line.isMilestone}
-						onCheckedChange={(checked) =>
-							onMilestoneChange(checked === true)
-						}
+						onCheckedChange={(checked) => onMilestoneChange(checked === true)}
 					/>
 					<Label htmlFor="bar-milestone">Milestone (single day)</Label>
 				</div>
@@ -166,9 +164,7 @@ export default function BarPopover({
 						className="w-full"
 						onClick={() => void onDelete()}
 					>
-						{confirmDelete
-							? "Click again to delete this line"
-							: "Delete line"}
+						{confirmDelete ? "Click again to delete this line" : "Delete line"}
 					</Button>
 				</div>
 			</PopoverContent>

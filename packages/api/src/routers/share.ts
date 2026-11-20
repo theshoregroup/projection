@@ -1,3 +1,4 @@
+import { posthog } from "@projection/auth/posthog";
 import { line, project } from "@projection/db/schema/app";
 import { TRPCError } from "@trpc/server";
 import { asc, eq } from "drizzle-orm";
@@ -6,7 +7,6 @@ import { deriveWindow } from "../domain/dates";
 import { applyDerivedGroupDates } from "../domain/groups";
 import { publicProcedure, router } from "../index";
 import { resolveOrgLogo } from "../lib/org-logo";
-import { posthog } from "@projection/auth/posthog";
 import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 
 /** Public, unauthenticated read-only Board via a Share Link token (CONTEXT.md). */

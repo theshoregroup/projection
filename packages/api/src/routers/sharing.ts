@@ -1,3 +1,4 @@
+import { posthog } from "@projection/auth/posthog";
 import { projectEditor } from "@projection/db/schema/app";
 import { user } from "@projection/db/schema/auth";
 import { env } from "@projection/env/server";
@@ -7,7 +8,6 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../index";
 import { assertOwner, loadProjectForUser } from "../lib/access";
-import { posthog } from "@projection/auth/posthog";
 import { inviteSchema } from "../schemas";
 
 export const sharingRouter = router({
