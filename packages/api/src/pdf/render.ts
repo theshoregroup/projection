@@ -36,6 +36,7 @@ import {
 	ASSIGNEE_FONT_SIZE,
 	BAR_PAD,
 	bodyRowSpace,
+	CELL_PAD,
 	DATE_COL_WIDTH,
 	DATE_FONT_SIZE,
 	ITEM_COL_WIDTH,
@@ -55,6 +56,7 @@ import {
 	rowHeightFor,
 	rowTops,
 	TICK_FONT_SIZE,
+	TIMELINE_GAP,
 	TITLE_BLOCK_HEIGHT,
 	truncate,
 	wrapText,
@@ -66,6 +68,7 @@ const COLOR_MUTED = "#77716c";
 // The Board shades weekends fill-muted-foreground/10 ≈ a flat light gray on paper
 const COLOR_WEEKEND = "#edecea";
 const COLOR_TEXT = "#1c1917";
+const MIN_TASK_BAR_WIDTH = 6;
 
 // ---------------------------------------------------------------------------
 // Coordinate mapping
@@ -280,13 +283,18 @@ function drawPanel(
 
 	// Header labels (bottom-aligned with 6pt padding, like the Board's panel)
 	const headerBaseline = pdfY(HEADER_HEIGHT) + 8;
-	const CELL_PAD = 4;
+
 	const headerLabels: Array<[string, number, number, boolean]> = [
 		// [label, xOffset, columnWidth, isShaded] — shading gets darker text
 		["Item", 0, ITEM_COL_WIDTH, false],
 		["Assignee", ITEM_COL_WIDTH, ASSIGNEE_COL_WIDTH, true],
 		["Start", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH, DATE_COL_WIDTH, false],
-		["End", ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH, DATE_COL_WIDTH, true],
+		[
+			"End",
+			ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH,
+			DATE_COL_WIDTH,
+			true,
+		],
 	];
 	for (const [label, offset, _colW, shaded] of headerLabels) {
 		page.drawText(label, {
@@ -357,7 +365,11 @@ function drawPanel(
 		// Dates are left-aligned with padding; End column uses darker text on shading
 		for (const [date, colOffset, shaded] of [
 			[line.startDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH, false],
-			[line.endDate, ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH, true],
+			[
+				line.endDate,
+				ITEM_COL_WIDTH + ASSIGNEE_COL_WIDTH + DATE_COL_WIDTH,
+				true,
+			],
 		] as const) {
 			page.drawText(date, {
 				x: panelX + colOffset + CELL_PAD,
@@ -381,7 +393,8 @@ function drawTimeline(
 	const colorMuted = hexColor(COLOR_MUTED);
 	const colorBorder = hexColor(COLOR_BORDER);
 	const pdfY = (svgY: number) => boardTop - svgY;
-	const tx = (x: number) => PAGE_MARGIN + PANEL_WIDTH + x;
+	const timelineX = PAGE_MARGIN + PANEL_WIDTH + TIMELINE_GAP;
+	const tx = (x: number) => timelineX + x;
 
 	const lastRow = pageRows[pageRows.length - 1];
 	const height = lastRow
@@ -400,11 +413,25 @@ function drawTimeline(
 		});
 	}
 
+	page.drawLine({
+		start: {
+			x: PAGE_MARGIN + PANEL_WIDTH,
+			y: pdfY(HEADER_HEIGHT),
+		},
+		end: {
+			x: timelineX + timelineWidth,
+			y: pdfY(HEADER_HEIGHT),
+		},
+		thickness: 0.75,
+		color: colorBorder,
+	});
+
 	// Tick gridlines
 	const ticks = ticksFor(geom);
 	for (const tick of ticks) {
+		if (Math.abs(tick.x) < 0.01) continue;
 		page.drawLine({
-			start: { x: tx(tick.x), y: pdfY(HEADER_HEIGHT - 16) },
+			start: { x: tx(tick.x), y: pdfY(HEADER_HEIGHT) },
 			end: { x: tx(tick.x), y: pdfY(height) },
 			thickness: 1,
 			color: colorBorder,
@@ -421,10 +448,10 @@ function drawTimeline(
 		);
 		page.drawLine({
 			start: { x: PAGE_MARGIN, y: sepY },
-			end: { x: PAGE_MARGIN + PANEL_WIDTH + timelineWidth, y: sepY },
-			thickness: 0.5,
-			color: colorBorder,
-			opacity: 0.5,
+			end: { x: timelineX + timelineWidth, y: sepY },
+			thickness: 0.75,
+			color: hexColor("#d0cbc7"),
+			opacity: 0.75,
 		});
 	}
 
@@ -446,18 +473,20 @@ function drawTimeline(
 			const capTop = cy - 6;
 			const barX = bar.x + BAR_INSET;
 			const barW = Math.max(bar.width - BAR_INSET * 2, 2);
-			page.drawSvgPath(
-				roundedRectPath(barX, capTop, barW, 6, 1.5),
-				{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color, opacity: 0.9 },
-			);
+			page.drawSvgPath(roundedRectPath(barX, capTop, barW, 6, 1.5), {
+				x: timelineX,
+				y: boardTop,
+				color,
+				opacity: 0.9,
+			});
 			const caps = groupCapPaths(bar.x, bar.width, capTop);
 			page.drawSvgPath(caps.left, {
-				x: PAGE_MARGIN + PANEL_WIDTH,
+				x: timelineX,
 				y: boardTop,
 				color,
 			});
 			page.drawSvgPath(caps.right, {
-				x: PAGE_MARGIN + PANEL_WIDTH,
+				x: timelineX,
 				y: boardTop,
 				color,
 			});
@@ -475,7 +504,7 @@ function drawTimeline(
 
 		if (bar.isMilestone) {
 			page.drawSvgPath(pdfDiamondPath(bar.x, cy), {
-				x: PAGE_MARGIN + PANEL_WIDTH,
+				x: timelineX,
 				y: boardTop,
 				color,
 			});
@@ -493,15 +522,17 @@ function drawTimeline(
 		}
 
 		const barX = bar.x + BAR_INSET;
-		const barW = Math.max(bar.width - BAR_INSET * 2, 2);
+		const barW = Math.max(bar.width - BAR_INSET * 2, MIN_TASK_BAR_WIDTH);
 		// Bars keep the compact height and center within the (possibly wrapped,
 		// taller) row.
 		const barH = PDF_ROW_HEIGHT - BAR_PAD * 2;
 		const barTopSvg = cy - barH / 2;
-		page.drawSvgPath(
-			roundedRectPath(barX, barTopSvg, barW, barH, BAR_RADIUS),
-			{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color, opacity: 0.85 },
-		);
+		page.drawSvgPath(roundedRectPath(barX, barTopSvg, barW, barH, BAR_RADIUS), {
+			x: timelineX,
+			y: boardTop,
+			color,
+			opacity: 0.85,
+		});
 		if (percentComplete > 0) {
 			page.drawSvgPath(
 				roundedRectPath(
@@ -511,7 +542,12 @@ function drawTimeline(
 					barH,
 					BAR_RADIUS,
 				),
-				{ x: PAGE_MARGIN + PANEL_WIDTH, y: boardTop, color: rgb(0, 0, 0), opacity: 0.35 },
+				{
+					x: timelineX,
+					y: boardTop,
+					color: rgb(0, 0, 0),
+					opacity: 0.35,
+				},
 			);
 		}
 		if (note) {
@@ -526,10 +562,11 @@ function drawTimeline(
 	}
 
 	// Axis labels on top (drawn last, like the Board)
+	// Align timeline dates with the panel column headings.
 	for (const tick of ticks) {
 		page.drawText(tick.label, {
 			x: tx(tick.x + 4),
-			y: pdfY(HEADER_HEIGHT - 20),
+			y: pdfY(HEADER_HEIGHT) + 8,
 			size: TICK_FONT_SIZE,
 			font: tick.major ? ctx.fontBold : ctx.font,
 			color: colorMuted,
@@ -599,8 +636,8 @@ export async function renderBoardPdf(
 		drawLogo(ctx);
 
 		const tops = rowTops(pageRows);
-		drawTimeline(ctx, project, pageRows, tops);
 		drawPanel(ctx, pageRows, tops);
+		drawTimeline(ctx, project, pageRows, tops);
 
 		// Board container borders (top + bottom, full width)
 		const lastRow = pageRows[pageRows.length - 1];
@@ -609,7 +646,8 @@ export async function renderBoardPdf(
 				rowHeightFor(lastRow.line, lastRow.depth)
 			: HEADER_HEIGHT;
 		const colorBorder = hexColor(COLOR_BORDER);
-		const right = PAGE_MARGIN + PANEL_WIDTH + layout.timelineWidth;
+		const right =
+			PAGE_MARGIN + PANEL_WIDTH + TIMELINE_GAP + layout.timelineWidth;
 		page.drawLine({
 			start: { x: PAGE_MARGIN, y: boardTop },
 			end: { x: right, y: boardTop },
