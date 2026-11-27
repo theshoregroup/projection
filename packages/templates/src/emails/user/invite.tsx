@@ -25,7 +25,12 @@ const orgInviteEmailSchema = z.object({
 
 type Props = z.infer<typeof orgInviteEmailSchema>["data"];
 
-function Email({ organizationName, inviterName, inviteeEmail, acceptUrl }: Props) {
+function Email({
+	organizationName,
+	inviterName,
+	inviteeEmail,
+	acceptUrl,
+}: Props) {
 	return (
 		<Html lang="en">
 			<Head>
@@ -65,8 +70,8 @@ function Email({ organizationName, inviterName, inviteeEmail, acceptUrl }: Props
 
 						<Container className="mt-6">
 							<Text className="text-muted-foreground text-sm">
-								If you weren't expecting this invite, you can ignore this
-								email — nothing happens until you accept it.
+								If you weren't expecting this invite, you can ignore this email
+								— nothing happens until you accept it.
 							</Text>
 						</Container>
 					</Container>
@@ -82,6 +87,7 @@ Email.PreviewProps = {
 	organizationName: "The Shore Group",
 	inviterName: "Liam Doyle",
 	inviteeEmail: "caitlin@theshoregroup.org",
-	acceptUrl: "https://projection.example.com/auth/v1/invites?inviteId=00000000-0000-0000-0000-000000000000",
+	acceptUrl:
+		"https://projection.example.com/auth/v1/invites?inviteId=00000000-0000-0000-0000-000000000000",
 } satisfies Props;
 export default Email;

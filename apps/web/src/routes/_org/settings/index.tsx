@@ -39,13 +39,13 @@ import {
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { ImageToUri } from "@/components/image-to-uri";
 import { authClient } from "@/lib/auth-client";
 import { getSsrHeaders } from "@/lib/auth-headers";
 import { getOrgShortName } from "@/utils/auth";
-import { useState } from "react";
 
 const currentOrganizationQry = (orgId: string) =>
 	queryOptions({
@@ -156,7 +156,7 @@ function RouteComponent() {
 			}),
 		},
 		onSubmit: async () => {},
-  });
+	});
 
 	const [logoChangePopoverOpen, setLogoChangePopoverOpen] = useState(false);
 
@@ -190,7 +190,10 @@ function RouteComponent() {
 													<FieldError errors={field.state.meta.errors} />
 												)}
 
-												<Popover open={logoChangePopoverOpen} onOpenChange={setLogoChangePopoverOpen}>
+												<Popover
+													open={logoChangePopoverOpen}
+													onOpenChange={setLogoChangePopoverOpen}
+												>
 													<PopoverTrigger
 														className="w-fit"
 														render={
@@ -217,8 +220,8 @@ function RouteComponent() {
 
 														<ImageToUri
 															onChange={(e) => {
-                                field.handleChange(e);
-																setLogoChangePopoverOpen(false)
+																field.handleChange(e);
+																setLogoChangePopoverOpen(false);
 															}}
 														/>
 													</PopoverContent>

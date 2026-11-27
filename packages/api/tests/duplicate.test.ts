@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { duplicateLines, type DuplicatableLine } from "../src/domain/duplicate";
+import { type DuplicatableLine, duplicateLines } from "../src/domain/duplicate";
 
 function makeLine(partial: Partial<DuplicatableLine>): DuplicatableLine {
 	return {

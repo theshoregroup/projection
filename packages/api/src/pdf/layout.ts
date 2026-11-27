@@ -75,6 +75,8 @@ export const DATE_FONT_SIZE = 7;
 /** Wrapped-row metrics: each wrapped text line plus vertical padding. */
 export const LINE_HEIGHT = ROW_TEXT_FONT_SIZE * 1.25;
 export const ROW_VPAD = 3;
+export const CELL_PAD = 4;
+export const TIMELINE_GAP = PDF_DIAMOND_SIZE + 2;
 
 // ---------------------------------------------------------------------------
 // Exported layout decisions (unit-tested without touching pdf-lib)
@@ -103,7 +105,8 @@ export function pdfLayout(
 	const pageWidth = dims.height;
 	const pageHeight = dims.width;
 
-	const timelineWidth = pageWidth - PAGE_MARGIN * 2 - PANEL_WIDTH;
+	const timelineWidth =
+		pageWidth - PAGE_MARGIN * 2 - PANEL_WIDTH - TIMELINE_GAP;
 	const totalDays = Math.max(1, diffDays(window.start, window.end) + 1);
 	const dayWidth = Math.max(
 		MIN_PDF_DAY_WIDTH,
@@ -196,10 +199,11 @@ export function textLines(
  * of the two cells, with a little vertical breathing room, and never shorter
  * than the compact single-line row. */
 export function rowHeightFor(line: PdfBoardLine, depth: number): number {
-	const itemWidth = ITEM_COL_WIDTH - depth * INDENT_PX;
+	const itemWidth = ITEM_COL_WIDTH - CELL_PAD * 2 - depth * INDENT_PX;
+	const assigneddWidth = ASSIGNEE_COL_WIDTH - CELL_PAD * 2;
 	const lines = Math.max(
 		textLines(line.item, itemWidth, ROW_TEXT_FONT_SIZE),
-		textLines(line.assignee ?? "", ASSIGNEE_COL_WIDTH, ASSIGNEE_FONT_SIZE),
+		textLines(line.assignee ?? "", assigneddWidth, ASSIGNEE_FONT_SIZE),
 	);
 	return Math.max(PDF_ROW_HEIGHT, lines * LINE_HEIGHT + ROW_VPAD);
 }

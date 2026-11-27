@@ -4,7 +4,11 @@ import {
 	ProjectorScreenChartIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { checkRoleForSuperuser } from "@projection/auth/organization/permissions";
-import { Avatar, AvatarFallback, AvatarImage } from "@projection/ui/components/avatar";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@projection/ui/components/avatar";
 import { Button } from "@projection/ui/components/button";
 import {
 	Sidebar,
@@ -149,8 +153,13 @@ function OrgLayout() {
 										) : (
 											<ProjectorScreenChartIcon />
 										)}
-                  </AvatarFallback>
-									{activeOrganization?.logo && <AvatarImage className="rounded-lg after:rounded-lg" src={activeOrganization.logo} />}
+									</AvatarFallback>
+									{activeOrganization?.logo && (
+										<AvatarImage
+											className="rounded-lg after:rounded-lg"
+											src={activeOrganization.logo}
+										/>
+									)}
 								</Avatar>
 								<span className="flex flex-col">
 									Projection

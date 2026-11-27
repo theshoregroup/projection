@@ -17,5 +17,3 @@ export const posthog = new PostHog(env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN, {
 	flushAt: env.NODE_ENV === "development" ? 1 : 20,
 	flushInterval: env.NODE_ENV === "development" ? 0 : 10_000,
 });
-
-

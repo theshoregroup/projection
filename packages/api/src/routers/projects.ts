@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { posthog } from "@projection/auth/posthog";
 import { line, project, projectEditor } from "@projection/db/schema/app";
 import { user } from "@projection/db/schema/auth";
 import { TRPCError } from "@trpc/server";
@@ -14,7 +15,6 @@ import {
 	loadProjectForUser,
 } from "../lib/access";
 import { resolveOrgLogo } from "../lib/org-logo";
-import { posthog } from "@projection/auth/posthog";
 import { PDF_PAGE_SIZES, type PdfPageSize } from "../pdf/layout";
 import {
 	projectCreateSchema,

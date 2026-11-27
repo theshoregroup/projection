@@ -283,5 +283,7 @@ export function useBoardPanel() {
 		onPointerMove,
 		onPointerUp,
 		toggle,
+		maxAssigneeWidth,
+		maxPanelWidth: Math.max(PANEL_MIN_WIDTH, maxPanelWidth),
 	} as const;
 }

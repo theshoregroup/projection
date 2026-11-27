@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { posthog } from "@projection/auth/posthog";
 import { line } from "@projection/db/schema/app";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
@@ -13,7 +14,6 @@ import {
 import { sortOrderAtEnd, sortOrderBetween } from "../domain/ordering";
 import { protectedProcedure, router } from "../index";
 import { loadLineForUser, loadProjectForUser } from "../lib/access";
-import { posthog } from "@projection/auth/posthog";
 import {
 	coerceMilestoneDates,
 	groupSchema,
